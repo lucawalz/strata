@@ -162,11 +162,7 @@ func Tree(repo Repo) ([]Finding, error) {
 			}
 			rel, _ := filepath.Rel(repo.Root, f)
 			for _, m := range inject.Scan(src) {
-				level := Error
-				if m.Level == inject.LevelWarning {
-					level = Warning
-				}
-				add(CheckInject, level, filepath.ToSlash(rel), m.Line, "%s at column %d", m.Kind, m.Col)
+				add(CheckInject, injectLevel(m), filepath.ToSlash(rel), m.Line, "%s at column %d", m.Kind, m.Col)
 			}
 		}
 	}
