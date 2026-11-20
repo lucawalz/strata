@@ -2,12 +2,14 @@ package calibrate
 
 import (
 	"context"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"unicode/utf8"
 )
 
 func fixtures(t *testing.T) []string {
@@ -55,5 +57,50 @@ func TestRunUnauthorized(t *testing.T) {
 	_, err := Run(context.Background(), srv.Client(), srv.URL, "k", "m", fixtures(t))
 	if err == nil || !strings.Contains(err.Error(), "401") {
 		t.Fatalf("want 401 error, got %v", err)
+	}
+}
+
+func TestRunCountsNotesWithoutFrontmatter(t *testing.T) {
+	dir := t.TempDir()
+	withFM := filepath.Join(dir, "a.md")
+	plain := filepath.Join(dir, "b.md")
+	plainSrc := "# Plain note\n\nno frontmatter here \xc3\xa4\xc3\xb6\n"
+	if err := os.WriteFile(withFM, []byte("---\nid: x\ntype: concept\nstatus: active\nsummary: s\n---\n"+strings.Repeat("a", 1000)), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(plain, []byte(plainSrc), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var bodies []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		raw, _ := io.ReadAll(r.Body)
+		bodies = append(bodies, string(raw))
+		_, _ = w.Write([]byte(`{"input_tokens": 250}`))
+	}))
+	defer srv.Close()
+	res, err := Run(context.Background(), srv.Client(), srv.URL, "k", "m", []string{withFM, plain})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := 1000 + utf8.RuneCountInString(plainSrc); res.Notes != 2 || res.Chars != want {
+		t.Fatalf("want 2 notes and %d chars, got %+v", want, res)
+	}
+	if len(bodies) != 2 || !strings.Contains(bodies[1], "no frontmatter here") || !strings.Contains(bodies[1], "# Plain note") {
+		t.Fatalf("second request did not carry the whole file: %v", bodies)
+	}
+}
+
+func TestRunNamesFileWithBrokenFrontmatter(t *testing.T) {
+	p := filepath.Join(t.TempDir(), "broken.md")
+	if err := os.WriteFile(p, []byte("---\nid: x\nno closing delimiter\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"input_tokens": 1}`))
+	}))
+	defer srv.Close()
+	_, err := Run(context.Background(), srv.Client(), srv.URL, "k", "m", []string{p})
+	if err == nil || !strings.Contains(err.Error(), p) {
+		t.Fatalf("want error naming %s, got %v", p, err)
 	}
 }

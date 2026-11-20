@@ -10,6 +10,7 @@ import (
 	"math"
 	"net/http"
 	"os"
+	"unicode/utf8"
 
 	"github.com/lucawalz/strata/internal/note"
 )
@@ -42,16 +43,20 @@ func Run(ctx context.Context, client *http.Client, baseURL, apiKey, model string
 		if err != nil {
 			return Result{}, err
 		}
+		body, chars := src, utf8.RuneCount(src)
 		n, err := note.Parse(path, src)
-		if err != nil {
-			return Result{}, err
+		switch {
+		case err == nil:
+			body, chars = n.Body, n.Chars
+		case !errors.Is(err, note.ErrNoFrontmatter):
+			return Result{}, fmt.Errorf("%s: %w", path, err)
 		}
-		tokens, err := countTokens(ctx, client, baseURL, apiKey, model, string(n.Body))
+		tokens, err := countTokens(ctx, client, baseURL, apiKey, model, string(body))
 		if err != nil {
 			return Result{}, fmt.Errorf("%s: %w", path, err)
 		}
 		res.Notes++
-		res.Chars += n.Chars
+		res.Chars += chars
 		res.Tokens += tokens
 	}
 	if res.Tokens == 0 {
