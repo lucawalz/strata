@@ -35,6 +35,64 @@ func TestAuditSingleParent(t *testing.T) {
 	}
 }
 
+func TestAuditSingleParentSignedStillFails(t *testing.T) {
+	r, base, _ := governedBase(t)
+	r.write(".github/workflows/x.yml", "a\n")
+	head := r.commit(true, ".github")
+	got := auditWants(t, r, base, head)
+	if !hasMsg(got, "audit", Error, head[:12]) {
+		t.Errorf("got %v", got)
+	}
+}
+
+func TestAuditEmptySigners(t *testing.T) {
+	r, _ := newGitRepo(t)
+	r.write(".github/allowed_signers", "")
+	r.write("AGENTS.md", "rules\n")
+	base := r.commit(false, ".github", "AGENTS.md")
+	sideBranch(r, base, true)
+	r.git("merge", "-q", "--no-ff", "--no-gpg-sign", "side", "-m", "m")
+	head := r.git("rev-parse", "HEAD")
+	got := auditWants(t, r, base, head)
+	if !hasMsg(got, "audit", Error, "allowed_signers is empty") {
+		t.Errorf("got %v", got)
+	}
+}
+
+func TestAuditMergeAfterMainGovernanceChange(t *testing.T) {
+	r, base, _ := governedBase(t)
+	r.git("checkout", "-q", "-b", "side", base)
+	r.write("notes/s.md", "s\n")
+	r.commit(false, "notes")
+	r.git("checkout", "-q", "main")
+	r.write("AGENTS.md", "rules v2\n")
+	before := r.commit(true, "AGENTS.md")
+	r.git("merge", "-q", "--no-ff", "--no-gpg-sign", "side", "-m", "m")
+	head := r.git("rev-parse", "HEAD")
+	if got := auditWants(t, r, before, head); len(got) != 0 {
+		t.Errorf("got %v", got)
+	}
+}
+
+func TestAuditOctopusUnsignedThirdParent(t *testing.T) {
+	r, base, _ := governedBase(t)
+	r.git("checkout", "-q", "-b", "s1", base)
+	r.write("notes/s1.md", "s\n")
+	r.commit(false, "notes")
+	r.git("checkout", "-q", "-b", "s2", base)
+	r.write("AGENTS.md", "rules s2\n")
+	bad := r.commit(false, "AGENTS.md")
+	r.git("checkout", "-q", "main")
+	r.write("notes/m.md", "m\n")
+	r.commit(false, "notes")
+	r.git("merge", "-q", "--no-gpg-sign", "s1", "s2", "-m", "m")
+	head := r.git("rev-parse", "HEAD")
+	got := auditWants(t, r, base, head)
+	if !hasMsg(got, "audit", Error, bad[:12]) {
+		t.Errorf("got %v", got)
+	}
+}
+
 func TestAuditZeroBefore(t *testing.T) {
 	r, _, _ := governedBase(t)
 	r.write("AGENTS.md", "rules v2\n")

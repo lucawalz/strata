@@ -120,14 +120,52 @@ func Diff(repo Repo, base, head string) ([]Finding, error) {
 
 type adder func(check string, level Level, path string, line int, format string, args ...any)
 
-func governance(repo Repo, base, mb, head string, changes []gitx.Change, add adder) error {
-	cfg := config.Default()
-	if raw, err := gitx.Show(repo.Root, base, configFile); err == nil {
-		if cfg, err = config.Load(raw); err != nil {
-			add(CheckConfig, Error, configFile, 0, "%v", err)
-			cfg = config.Default()
+type govSetup struct {
+	cfg         config.Config
+	signersPath string
+	empty       bool
+	cleanup     func()
+	findings    []Finding
+}
+
+func loadGovernance(root, rev string) (govSetup, error) {
+	g := govSetup{cfg: config.Default(), cleanup: func() {}}
+	if raw, err := gitx.Show(root, rev, configFile); err == nil {
+		cfg, err := config.Load(raw)
+		if err != nil {
+			g.findings = append(g.findings, Finding{Check: CheckConfig, Level: Error, Path: configFile, Message: err.Error()})
+		} else {
+			g.cfg = cfg
 		}
 	}
+	signers, err := gitx.Show(root, rev, g.cfg.AllowedSigners)
+	if err != nil || len(strings.TrimSpace(string(signers))) == 0 {
+		g.empty = true
+		return g, nil
+	}
+	dir, err := os.MkdirTemp("", "strata-signers")
+	if err != nil {
+		return g, err
+	}
+	g.cleanup = func() { _ = os.RemoveAll(dir) }
+	g.signersPath = filepath.Join(dir, "allowed_signers")
+	if err := os.WriteFile(g.signersPath, signers, 0o600); err != nil {
+		g.cleanup()
+		return g, err
+	}
+	return g, nil
+}
+
+func governance(repo Repo, base, mb, head string, changes []gitx.Change, add adder) error {
+	g, err := loadGovernance(repo.Root, base)
+	if err != nil {
+		return err
+	}
+	defer g.cleanup()
+	for _, f := range g.findings {
+		add(f.Check, f.Level, f.Path, f.Line, "%s", f.Message)
+	}
+	cfg := g.cfg
 
 	var touched, other []string
 	for _, c := range changes {
@@ -155,23 +193,9 @@ func governance(repo Repo, base, mb, head string, changes []gitx.Change, add add
 	if len(other) > 0 {
 		add(CheckGovernanceIsolation, Error, touched[0], 0, "governance files must change in their own pull request, also changed: %s", strings.Join(other, ", "))
 	}
-
-	signers, err := gitx.Show(repo.Root, base, cfg.AllowedSigners)
-	if err != nil {
-		signers = nil
-	}
-	if len(strings.TrimSpace(string(signers))) == 0 {
+	if g.empty {
 		add(CheckGovernance, Error, cfg.AllowedSigners, 0, "allowed_signers is empty")
 		return nil
-	}
-	dir, err := os.MkdirTemp("", "strata-signers")
-	if err != nil {
-		return err
-	}
-	defer func() { _ = os.RemoveAll(dir) }()
-	signersPath := filepath.Join(dir, "allowed_signers")
-	if err := os.WriteFile(signersPath, signers, 0o600); err != nil {
-		return err
 	}
 
 	commits, err := gitx.Commits(repo.Root, mb, head)
@@ -179,7 +203,7 @@ func governance(repo Repo, base, mb, head string, changes []gitx.Change, add add
 		return err
 	}
 	for _, sha := range commits {
-		if err := gitx.Verify(repo.Root, sha, signersPath); err != nil {
+		if err := gitx.Verify(repo.Root, sha, g.signersPath); err != nil {
 			add(CheckGovernance, Error, touched[0], 0, "commit %s lacks a valid signature while governance files change", sha[:min(len(sha), shortSHA)])
 		}
 	}
