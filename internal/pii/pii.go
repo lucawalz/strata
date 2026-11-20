@@ -21,7 +21,9 @@ const (
 	ibanMaxLen    = 34
 	ibanModulus   = 97
 	cardMinDigits = 12
-	cardMinGroup  = 4
+	cardGroup     = 4
+	mc2SeriesLow  = "2221"
+	mc2SeriesHigh = "2720"
 	cardMaxDigits = 19
 	steuerLen     = 11
 	rvnrLen       = 12
@@ -35,13 +37,15 @@ const (
 var (
 	rvnrWeights = [12]int{2, 1, 2, 5, 7, 1, 2, 1, 2, 1, 2, 1}
 	icaoWeights = [3]int{7, 3, 1}
+	amexGroups  = []int{4, 6, 5}
 
 	ibanRunRe    = regexp.MustCompile(`\b[A-Z]{2}[0-9]{2}[A-Z0-9]*(?: [A-Z0-9]+)*`)
-	cardRunRe    = regexp.MustCompile(`[0-9]+(?:[ -][0-9]+)*`)
+	cardRunRe    = regexp.MustCompile(`\b[0-9]+(?: [0-9]+)*\b`)
 	digitGroupRe = regexp.MustCompile(`[0-9]+`)
 	steuerRe     = regexp.MustCompile(`\b[0-9]{2} ?[0-9]{3} ?[0-9]{3} ?[0-9]{3}\b`)
 	rvnrRe       = regexp.MustCompile(`\b[0-9]{2} ?[0-9]{6} ?[A-Z] ?[0-9]{3}\b`)
 	idDocRe      = regexp.MustCompile(`\b[CFGHJKLMNPRTVWXY][0-9CFGHJKLMNPRTVWXYZ]{7,8}[0-9]\b`)
+	idLabelRe    = regexp.MustCompile(`(?i)\b(?:personalausweis|ausweis|reisepass|pass|dokumentennummer|passport|id card)(?:nummer|nr)?\b`)
 )
 
 type Match struct {
@@ -213,7 +217,7 @@ func scanCards(text []byte, add func(int)) {
 
 func longestCard(text []byte, groups []span, i int) int {
 	for j := len(groups) - 1; j >= i; j-- {
-		if j > i && !groupsWide(groups[i:j+1]) {
+		if j > i && !cardGrouping(groups[i:j+1]) {
 			continue
 		}
 		var digits strings.Builder
@@ -221,20 +225,40 @@ func longestCard(text []byte, groups []span, i int) int {
 			digits.Write(text[g.start:g.end])
 		}
 		d := digits.String()
-		if len(d) >= cardMinDigits && len(d) <= cardMaxDigits && d[0] >= '2' && d[0] <= '6' && Luhn(d) {
+		if len(d) >= cardMinDigits && len(d) <= cardMaxDigits && cardPrefix(d) && Luhn(d) {
 			return j
 		}
 	}
 	return -1
 }
 
-func groupsWide(groups []span) bool {
-	for _, g := range groups {
-		if g.end-g.start < cardMinGroup {
-			return false
-		}
+func cardGrouping(groups []span) bool {
+	four, amex := true, len(groups) == len(amexGroups)
+	for i, g := range groups {
+		w := g.end - g.start
+		four = four && w == cardGroup
+		amex = amex && w == amexGroups[i]
 	}
-	return true
+	return four || amex
+}
+
+func cardPrefix(d string) bool {
+	if d[0] == '2' {
+		return d[:4] >= mc2SeriesLow && d[:4] <= mc2SeriesHigh
+	}
+	return d[0] >= '3' && d[0] <= '6'
+}
+
+func afterPlus(text []byte, start int) bool {
+	i := start - 1
+	for i >= 0 && (text[i] == ' ' || (text[i] >= '0' && text[i] <= '9')) {
+		i--
+	}
+	return i >= 0 && text[i] == '+'
+}
+
+func labelled(text []byte, start int) bool {
+	return idLabelRe.Match(text[bytes.LastIndexByte(text[:start], '\n')+1 : start])
 }
 
 func scanIBANs(text []byte, add func(int)) {
@@ -305,7 +329,7 @@ func Scan(orig []byte) []Match {
 	scanIBANs(text, collect(KindIBAN))
 	scanCards(text, collect(KindCard))
 	for _, loc := range steuerRe.FindAllIndex(text, -1) {
-		if SteuerID(unspaced(text[loc[0]:loc[1]])) {
+		if !afterPlus(text, loc[0]) && SteuerID(unspaced(text[loc[0]:loc[1]])) {
 			collect(KindSteuerID)(loc[0])
 		}
 	}
@@ -315,7 +339,8 @@ func Scan(orig []byte) []Match {
 		}
 	}
 	for _, loc := range idDocRe.FindAllIndex(text, -1) {
-		if s := string(text[loc[0]:loc[1]]); IDDocument(s) || idSerialShape(s) {
+		s := string(text[loc[0]:loc[1]])
+		if len(s) == idDocBase+1 && IDDocument(s) || len(s) == idDocBase && labelled(text, loc[0]) && (IDDocument(s) || idSerialShape(s)) {
 			collect(KindIDDocument)(loc[0])
 		}
 	}

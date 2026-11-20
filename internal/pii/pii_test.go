@@ -107,7 +107,10 @@ func TestScanAdjacentGroups(t *testing.T) {
 		{"4111 1111 1111 1111 2026", []Match{{KindCard, 1, 1}}},
 		{"AT611904300234573201 2026", []Match{{KindIBAN, 1, 1}}},
 		{card12, []Match{{KindCard, 1, 1}}},
-		{"L01X00T47", []Match{{KindIDDocument, 1, 1}}},
+		{"Personalausweis L01X00T47", []Match{{KindIDDocument, 1, 17}}},
+		{"Ausweis-Nr.: LH1234567", []Match{{KindIDDocument, 1, 14}}},
+		{"passport M2X4P7K91", []Match{{KindIDDocument, 1, 10}}},
+		{"3782 822463 10005", []Match{{KindCard, 1, 1}}},
 		{"CHRYSTHMY", nil},
 	}
 	for _, c := range cases {
@@ -136,6 +139,23 @@ func TestScanPrintedForms(t *testing.T) {
 	for _, c := range cases {
 		if got := Scan([]byte(c.in)); fmt.Sprint(got) != fmt.Sprint(c.want) {
 			t.Errorf("Scan(%q) = %v, want %v", c.in, got, c.want)
+		}
+	}
+}
+
+func TestScanFalsePositives(t *testing.T) {
+	for _, in := range []string{
+		"Jahre 2021 2022 2023 2024",
+		"2021 2022 2023",
+		"LH1234567",
+		"M2X4P7K91",
+		"+49 15003278466",
+		"sha deadbeef4111111111111111",
+		"4111111111111111abc",
+		"41 1111 1111 1111 11",
+	} {
+		if m := Scan([]byte(in)); len(m) != 0 {
+			t.Errorf("Scan(%q) = %v", in, m)
 		}
 	}
 }

@@ -35,6 +35,13 @@ func TestScan(t *testing.T) {
 		{"local image", "![a](../raw/a.png)", ""},
 		{"german", "Die Gr" + u(0xF6) + u(0xDF) + "en" + u(0xE4) + "nderung der Stra" + u(0xDF) + "e", ""},
 		{"bom at start", u(0xFEFF) + "hello", ""},
+		{"family emoji", u(0x1F468) + u(0x200D) + u(0x1F469) + u(0x200D) + u(0x1F467), ""},
+		{"technologist emoji", u(0x1F9D1) + u(0x200D) + u(0x1F4BB), ""},
+		{"skin tone emoji", u(0x1F469) + u(0x1F3FD) + u(0x200D) + u(0x1F4BB), ""},
+		{"flag emoji", u(0x1F3F3) + u(0xFE0F) + u(0x200D) + u(0x1F308), ""},
+		{"zwj letters", "a" + u(0x200D) + "b", "zero-width"},
+		{"zwj emoji letter", u(0x1F468) + u(0x200D) + "b", "zero-width"},
+		{"zwj line end", u(0x1F468) + u(0x200D), "zero-width"},
 	}
 	for _, c := range cases {
 		got := kinds(c.text)

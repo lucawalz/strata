@@ -15,6 +15,10 @@ const (
 
 	base64Threshold = 120
 	bom             = 0xFEFF
+	zwj             = 0x200D
+	vs16            = 0xFE0F
+	skinToneFirst   = 0x1F3FB
+	skinToneLast    = 0x1F3FF
 )
 
 type Match struct {
@@ -63,6 +67,18 @@ func hiddenKind(r rune) string {
 	return ""
 }
 
+func emoji(r rune) bool {
+	return unicode.Is(unicode.So, r) || (r >= skinToneFirst && r <= skinToneLast)
+}
+
+func emojiJoin(runes []rune, i int) bool {
+	prev := i - 1
+	if prev > 0 && runes[prev] == vs16 {
+		prev--
+	}
+	return prev >= 0 && i+1 < len(runes) && emoji(runes[prev]) && emoji(runes[i+1])
+}
+
 func Scan(text []byte) []Match {
 	var out []Match
 	for i, line := range bytes.Split(text, []byte("\n")) {
@@ -75,14 +91,16 @@ func scanLine(out []Match, line string, n int, first bool) []Match {
 	add := func(kind string, col int) {
 		out = append(out, Match{Kind: kind, Line: n, Col: col, Level: LevelError})
 	}
-	col := 0
-	for _, r := range line {
-		col++
-		if r == bom && first && col == 1 {
+	runes := []rune(line)
+	for i, r := range runes {
+		if r == bom && first && i == 0 {
+			continue
+		}
+		if r == zwj && emojiJoin(runes, i) {
 			continue
 		}
 		if k := hiddenKind(r); k != "" {
-			add(k, col)
+			add(k, i+1)
 		}
 	}
 	for _, p := range patterns {
