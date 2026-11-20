@@ -25,10 +25,10 @@ The repository's AGENTS.md is authoritative; this skill summarises the workflow.
 ## Steps
 
 1. Search before creating: query the notes by the item's key terms (`qmd` when installed, otherwise a text search over `notes/`).
-2. When a matching note exists, merge: integrate the new material into the body where it belongs, rewrite the `summary` so it describes the whole note, and add the inbox item to `sources`. Never append a dated "Update" paragraph.
+2. When a matching note exists, merge: integrate the new material into the body where it belongs, rewrite the `summary` so it describes the whole note, and add the item's `raw/` path to `sources`. Never append a dated "Update" paragraph.
 3. When nothing matches, create a new note with a fresh `id`, status `active`, a one-sentence summary and links to related notes in `refs`.
 4. When the item contradicts an existing note, decide which one holds. Set the older note to status `superseded`, set its `superseded_by` to the newer id, and move it to `archive/`. Fix links that pointed to it. When the answer is unclear, record the contradiction under an "Open questions" H2 instead.
-5. Move the processed inbox item to `raw/` when the original must be kept, otherwise delete it in the same commit. Never modify or delete anything already under `raw/`.
+5. Move every processed inbox item into `raw/` with `git mv`, in the same commit as the note, and list the new `raw/` path in the note's `sources`. Never delete an inbox item, and never modify, rename or delete anything already under `raw/`.
 6. Archive instead of deleting notes; `archive/` keeps history.
 7. One pull request per topic, labelled `kind/note`, from a branch named `feat/<topic>`. Web sessions push only to non-main branches.
 8. Run `strata check tree` before opening the PR and fix every error finding.

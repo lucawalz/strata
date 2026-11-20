@@ -1,9 +1,12 @@
 package skillsync
 
 import (
+	"errors"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"testing"
+	"testing/fstest"
 
 	"github.com/lucawalz/strata/skills"
 )
@@ -39,5 +42,52 @@ func TestSyncReplacesShippedAndKeepsLocal(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(to, "curate", "SKILL.md")); err != nil {
 		t.Error("curate not written")
+	}
+}
+
+type failingFS struct {
+	fs.FS
+	name string
+}
+
+func (f failingFS) Open(name string) (fs.File, error) {
+	if name == f.name {
+		return nil, errors.New("read failed")
+	}
+	return f.FS.Open(name)
+}
+
+func TestSyncFailureKeepsExistingSkill(t *testing.T) {
+	to := t.TempDir()
+	keep := filepath.Join(to, "capture", "SKILL.md")
+	if err := os.MkdirAll(filepath.Dir(keep), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(keep, []byte("existing"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	src := failingFS{fstest.MapFS{
+		"capture/SKILL.md":     {Data: []byte("new")},
+		"capture/scenarios.md": {Data: []byte("new")},
+	}, "capture/scenarios.md"}
+	if err := Sync(src, to); err == nil {
+		t.Fatal("expected error")
+	}
+	if got, _ := os.ReadFile(keep); string(got) != "existing" {
+		t.Errorf("existing skill damaged: %q", got)
+	}
+	entries, _ := os.ReadDir(to)
+	if len(entries) != 1 {
+		t.Errorf("temporary files left behind: %v", entries)
+	}
+}
+
+func TestSyncCreatesMissingTarget(t *testing.T) {
+	to := filepath.Join(t.TempDir(), "missing", ".claude", "skills")
+	if err := Sync(skills.FS, to); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(to, "capture", "SKILL.md")); err != nil {
+		t.Error(err)
 	}
 }
