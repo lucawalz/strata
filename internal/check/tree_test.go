@@ -44,6 +44,7 @@ func TestTree(t *testing.T) {
 		"inject_bidi":           {{"inject", Error, "notes/good.md"}},
 		"pii_iban":              {{"pii", Error, "notes/good.md"}},
 		"german":                nil,
+		"archive_loose":         nil,
 	}
 	for name, exp := range cases {
 		t.Run(name, func(t *testing.T) {

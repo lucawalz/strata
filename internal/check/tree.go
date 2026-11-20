@@ -97,30 +97,32 @@ func Tree(repo Repo) ([]Finding, error) {
 			add(CheckFrontmatter, Error, p.rel, frontmatterL, "%d tags exceed max_tags %d", len(fm.Tags), repo.Config.MaxTags)
 		}
 
-		caps := repo.Config.Caps
-		switch {
-		case n.Chars > caps.HardMaxChars:
-			add(CheckSize, Error, p.rel, 0, "body has %d characters, hard maximum is %d", n.Chars, caps.HardMaxChars)
-		case n.Chars > caps.TargetMaxChars:
-			add(CheckSize, Warning, p.rel, 0, "body has %d characters, target maximum is %d", n.Chars, caps.TargetMaxChars)
-		case n.Chars < caps.TargetMinChars:
-			add(CheckSize, Warning, p.rel, 0, "body has %d characters, target minimum is %d", n.Chars, caps.TargetMinChars)
-		}
-
-		var h1 []note.Heading
-		for _, h := range n.Headings {
-			if h.Level == 1 {
-				h1 = append(h1, h)
+		if !p.archive {
+			caps := repo.Config.Caps
+			switch {
+			case n.Chars > caps.HardMaxChars:
+				add(CheckSize, Error, p.rel, 0, "body has %d characters, hard maximum is %d", n.Chars, caps.HardMaxChars)
+			case n.Chars > caps.TargetMaxChars:
+				add(CheckSize, Warning, p.rel, 0, "body has %d characters, target maximum is %d", n.Chars, caps.TargetMaxChars)
+			case n.Chars < caps.TargetMinChars:
+				add(CheckSize, Warning, p.rel, 0, "body has %d characters, target minimum is %d", n.Chars, caps.TargetMinChars)
 			}
-		}
-		switch {
-		case len(h1) == 0:
-			add(CheckStructure, Error, p.rel, n.FrontmatterLines+1, "note has no H1")
-		case len(h1) > 1:
-			add(CheckStructure, Error, p.rel, h1[1].Line, "note has %d H1 headings", len(h1))
-		}
-		if n.HashLineBeforeH1 > 0 {
-			add(CheckStructure, Error, p.rel, n.HashLineBeforeH1, "line starting with # inside frontmatter")
+
+			var h1 []note.Heading
+			for _, h := range n.Headings {
+				if h.Level == 1 {
+					h1 = append(h1, h)
+				}
+			}
+			switch {
+			case len(h1) == 0:
+				add(CheckStructure, Error, p.rel, n.FrontmatterLines+1, "note has no H1")
+			case len(h1) > 1:
+				add(CheckStructure, Error, p.rel, h1[1].Line, "note has %d H1 headings", len(h1))
+			}
+			if n.HashLineBeforeH1 > 0 {
+				add(CheckStructure, Error, p.rel, n.HashLineBeforeH1, "line starting with # inside frontmatter")
+			}
 		}
 
 		for _, l := range n.Links {
