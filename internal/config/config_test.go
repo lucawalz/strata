@@ -29,8 +29,8 @@ func TestLoadKeepsOtherDefaults(t *testing.T) {
 
 func TestLoadRejects(t *testing.T) {
 	for name, raw := range map[string]string{
-		"hard below target max": "caps:\n  hard_max_chars: 5000\n",
-		"target min above max":  "caps:\n  target_min_chars: 7000\n",
+		"hard below target max": "caps:\n  hard_max_chars: 3000\n",
+		"target min above max":  "caps:\n  target_min_chars: 4000\n",
 		"unknown key":           "bogus: 1\n",
 		"bad yaml":              "caps: [\n",
 	} {

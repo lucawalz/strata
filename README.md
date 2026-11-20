@@ -55,6 +55,8 @@ Measure the characters-per-token ratio of sample notes and print proposed size c
 strata calibrate --model MODEL DIR
 ```
 
+The default caps come from one run on 2026-11-20 over 64 sample notes with `claude-opus-5-5`: 2.31 characters per token, giving 700, 3500 and 6900 characters.
+
 Copy the embedded capture and curate skills into a skills directory; directories with other names are left alone:
 
 ```

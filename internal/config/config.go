@@ -10,9 +10,9 @@ import (
 )
 
 const (
-	defaultTargetMinChars = 1200
-	defaultTargetMaxChars = 6000
-	defaultHardMaxChars   = 12000
+	defaultTargetMinChars = 700
+	defaultTargetMaxChars = 3500
+	defaultHardMaxChars   = 6900
 	defaultMaxTags        = 8
 	defaultAllowedSigners = ".github/allowed_signers"
 )
