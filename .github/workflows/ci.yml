@@ -77,6 +77,14 @@ jobs:
     permissions:
       contents: read
 
+  notes-fixture:
+    uses: ./.github/workflows/check.yml
+    permissions:
+      contents: read
+    with:
+      root: testdata/workflow-repo
+      mode: tree
+
   pr-title:
     if: github.event_name == 'pull_request'
     uses: lucawalz/.github/.github/workflows/pr-title.yml@b4689c6655b628d5b755ad9a12ec7f247a72d392 # v0.2.0
@@ -101,6 +109,7 @@ jobs:
       - test
       - actionlint
       - zizmor
+      - notes-fixture
       - pr-title
       - codeql
     runs-on: ubuntu-latest

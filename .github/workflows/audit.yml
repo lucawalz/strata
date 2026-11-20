@@ -1,0 +1,40 @@
+name: audit
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
+        with:
+          go-version: stable
+          cache: false
+      - name: Audit governance commits
+        env:
+          STRATA_REF: ${{ fromJSON(toJSON(job)).workflow_sha }}
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.event.after }}
+        run: go run "github.com/lucawalz/strata/cmd/strata@${STRATA_REF}" audit --before "${BEFORE}" --after "${AFTER}" --format github
+      - name: Open issue
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.event.after }}
+        run: |
+          gh issue create --repo "${GITHUB_REPOSITORY}" \
+            --title "audit: governance commit without owner signature" \
+            --body "Governance paths changed without a valid owner signature between ${BEFORE} and ${AFTER}."
