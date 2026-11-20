@@ -63,7 +63,7 @@ strata skills sync --to .claude/skills
 
 `--format github` prints GitHub workflow commands instead of text lines.
 
-A notes repository calls the reusable workflows `check.yml`, `audit.yml` and `gate.yml` from its own workflows. The caller of `check.yml` grants `contents: read`. The caller of `audit.yml` grants `contents: read` and, on its report job, `issues: write`. The caller of `gate.yml` passes the `GATE_APP_ID` and `GATE_APP_PRIVATE_KEY` secrets of a `gate` environment limited to `main`, together with the aggregate `result` of its check jobs and the `head-sha` to report on.
+A notes repository calls the reusable workflows `check.yml`, `audit.yml` and `gate.yml` from its own workflows. The caller of `check.yml` grants `contents: read`. The caller of `audit.yml` grants `contents: read` and, on its report job, `issues: write`. The caller job of `gate.yml` uses `secrets: inherit` and passes the aggregate `result` of its check jobs and the `head-sha` to report on. `GATE_APP_ID` and `GATE_APP_PRIVATE_KEY` exist only as secrets of the `gate` environment, which is limited to `main`, and never as repository secrets.
 
 ## Support
 
