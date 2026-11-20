@@ -14,6 +14,7 @@ jobs:
       contents: read
     outputs:
       code: ${{ steps.audit.outputs.code }}
+      findings: ${{ steps.audit.outputs.findings }}
     steps:
       - name: Require push event
         env:
@@ -43,8 +44,15 @@ jobs:
           AFTER: ${{ github.event.after }}
         run: |
           code=0
-          "${RUNNER_TEMP}/bin/strata" audit --before "${BEFORE}" --after "${AFTER}" --format github || code=$?
-          echo "code=${code}" >> "${GITHUB_OUTPUT}"
+          findings="${RUNNER_TEMP}/findings.txt"
+          "${RUNNER_TEMP}/bin/strata" audit --before "${BEFORE}" --after "${AFTER}" --format github > "${findings}" || code=$?
+          cat "${findings}"
+          {
+            echo "code=${code}"
+            echo "findings<<STRATA_FINDINGS_END"
+            cat "${findings}"
+            echo "STRATA_FINDINGS_END"
+          } >> "${GITHUB_OUTPUT}"
           exit "${code}"
 
   report:
@@ -61,7 +69,13 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           BEFORE: ${{ github.event.before }}
           AFTER: ${{ github.event.after }}
+          FINDINGS: ${{ needs.audit.outputs.findings }}
         run: |
-          gh issue create --repo "${GITHUB_REPOSITORY}" \
-            --title "audit: governance commit without owner signature" \
-            --body "Governance paths changed without a valid owner signature between ${BEFORE} and ${AFTER}."
+          title="audit: governance commit without owner signature"
+          summary="Governance paths changed without a valid owner signature between ${BEFORE} and ${AFTER}."
+          if ! grep -q 'title=audit::' <<< "${FINDINGS}"; then
+            title="audit: configuration could not be read"
+            summary="strata.yml at ${BEFORE} could not be read; the audit of ${BEFORE}..${AFTER} used the default configuration."
+          fi
+          body="$(printf '%s\n\nFindings:\n\n    %s\n' "${summary}" "${FINDINGS//$'\n'/$'\n'    }")"
+          gh issue create --repo "${GITHUB_REPOSITORY}" --title "${title}" --body "${body}"
