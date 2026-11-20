@@ -77,6 +77,20 @@ jobs:
     permissions:
       contents: read
 
+  skills:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      - name: Validate skills
+        run: |
+          for dir in skills/*/; do
+            uvx --from skills-ref==0.1.1 agentskills validate "${dir%/}"
+          done
+
   notes-fixture:
     uses: ./.github/workflows/check.yml
     permissions:
@@ -109,6 +123,7 @@ jobs:
       - test
       - actionlint
       - zizmor
+      - skills
       - notes-fixture
       - pr-title
       - codeql

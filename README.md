@@ -18,7 +18,37 @@ go install github.com/lucawalz/strata/cmd/strata@latest
 
 ## Usage
 
-Usage is documented once the checks are implemented.
+Check the notes tree of a repository (defaults to the current directory):
+
+```
+strata check tree --root DIR --format text
+```
+
+Check a pull request range for add-only changes under `raw/`, append-only edits, governance isolation and commit signatures:
+
+```
+strata check diff --base SHA --head SHA --root DIR
+```
+
+Audit a pushed range for governance changes without an owner signature:
+
+```
+strata audit --before SHA --after SHA --root DIR
+```
+
+Measure the characters-per-token ratio of sample notes and print proposed size caps; the key is read from `ANTHROPIC_API_KEY`:
+
+```
+strata calibrate --model MODEL DIR
+```
+
+Copy the embedded capture and curate skills into a skills directory; directories with other names are left alone:
+
+```
+strata skills sync --to .claude/skills
+```
+
+`--format github` prints GitHub workflow commands instead of text lines.
 
 ## Support
 

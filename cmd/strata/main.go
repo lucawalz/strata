@@ -16,6 +16,8 @@ import (
 	"github.com/lucawalz/strata/internal/check"
 	"github.com/lucawalz/strata/internal/config"
 	"github.com/lucawalz/strata/internal/gitx"
+	"github.com/lucawalz/strata/internal/skillsync"
+	"github.com/lucawalz/strata/skills"
 )
 
 const (
@@ -28,7 +30,7 @@ const (
 
 	anthropicURL = "https://api.anthropic.com"
 	apiKeyEnv    = "ANTHROPIC_API_KEY"
-	usage        = "usage: strata check tree [--root DIR] [--format text|github]\n       strata check diff --base SHA --head SHA [--root DIR] [--format text|github]\n       strata audit --before SHA --after SHA [--root DIR] [--format text|github]\n       strata calibrate --model MODEL DIR"
+	usage        = "usage: strata check tree [--root DIR] [--format text|github]\n       strata check diff --base SHA --head SHA [--root DIR] [--format text|github]\n       strata audit --before SHA --after SHA [--root DIR] [--format text|github]\n       strata calibrate --model MODEL DIR\n       strata skills sync --to DIR"
 )
 
 var githubEscapes = strings.NewReplacer("%", "%25", "\r", "%0D", "\n", "%0A")
@@ -50,6 +52,9 @@ func run(args []string, stdout, stderr io.Writer) int {
 	cmd, rest := args[0], args[1:]
 	if cmd == "calibrate" {
 		return runCalibrate(rest, stdout, stderr)
+	}
+	if cmd == "skills" {
+		return runSkills(rest, stdout, stderr)
 	}
 	var sub string
 	switch cmd {
@@ -144,6 +149,23 @@ func runCalibrate(args []string, stdout, stderr io.Writer) int {
 	caps := res.ProposedCaps()
 	_, _ = fmt.Fprintf(stdout, "notes %d chars %d tokens %d chars_per_token %.2f\ntarget_min_chars %d\ntarget_max_chars %d\nhard_max_chars %d\n",
 		res.Notes, res.Chars, res.Tokens, res.CharsPerToken, caps[0], caps[1], caps[2])
+	return exitOK
+}
+
+func runSkills(args []string, stdout, stderr io.Writer) int {
+	if len(args) == 0 || args[0] != "sync" {
+		return fail(stderr, "%s", usage)
+	}
+	flags := flag.NewFlagSet("skills sync", flag.ContinueOnError)
+	flags.SetOutput(stderr)
+	to := flags.String("to", "", "target skills directory")
+	if err := flags.Parse(args[1:]); err != nil || flags.NArg() > 0 || *to == "" {
+		return fail(stderr, "%s", usage)
+	}
+	if err := skillsync.Sync(skills.FS, *to); err != nil {
+		return fail(stderr, "%v", err)
+	}
+	_, _ = fmt.Fprintf(stdout, "synced skills to %s\n", *to)
 	return exitOK
 }
 
