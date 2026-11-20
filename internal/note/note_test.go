@@ -91,9 +91,29 @@ func TestParseUnterminatedFrontmatter(t *testing.T) {
 }
 
 func TestParseInvalidYAML(t *testing.T) {
-	_, err := Parse("a.md", []byte("---\nid: [a\n---\nbody\n"))
-	if err == nil {
-		t.Fatal("want error")
+	_, err := Parse("a.md", []byte("---\nid: a\ntags: x\n---\nbody\n"))
+	if err == nil || !strings.Contains(err.Error(), "line 3:") {
+		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestParseLinkAndHeadingLines(t *testing.T) {
+	src := "---\nid: a\n---\nfirst paragraph\n\n![](x.png)\n\n[`f`](a.md)\n\n[*e*](b.md)\n\n##\n\ntext [t](c.md)\n"
+	n, err := Parse("a.md", []byte(src))
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantLinks := []Link{
+		{Target: "x.png", Line: 6, Image: true},
+		{Target: "a.md", Line: 8},
+		{Target: "b.md", Line: 10},
+		{Target: "c.md", Line: 14},
+	}
+	if !reflect.DeepEqual(n.Links, wantLinks) {
+		t.Errorf("links = %+v", n.Links)
+	}
+	if len(n.Headings) != 1 || n.Headings[0].Line != 12 {
+		t.Errorf("headings = %+v", n.Headings)
 	}
 }
 
