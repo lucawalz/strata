@@ -1,12 +1,25 @@
 # strata
 
-Checks the structure of a Markdown note vault in CI.
+[![ci](https://github.com/lucawalz/strata/actions/workflows/ci.yml/badge.svg)](https://github.com/lucawalz/strata/actions/workflows/ci.yml)
+[![release](https://img.shields.io/github/v/release/lucawalz/strata)](https://github.com/lucawalz/strata/releases)
+[![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+![Go](https://img.shields.io/badge/Go-1.27-00ADD8?logo=go&logoColor=white)
+
+A self-hosted knowledge base on git that AI agents maintain through pull requests.
+
+```mermaid
+flowchart LR
+  claude[Claude Code] -->|pull request| notes[notes repository]
+  notes -->|calls| check[strata check workflow]
+  check -->|findings| notes
+  owner[owner] -->|signed governance commits, merge| notes
+```
 
 ## Description
 
-strata is a Go command line tool that reads a vault of Markdown notes and reports structural problems as findings: note size outside the configured caps, too many tags, and changes to governance paths that lack a signed commit from an allowed signer. Size is measured in Unicode code points of the note body after the frontmatter.
+strata turns a private git repository of Markdown notes into a knowledge base that agents keep organised and every Claude surface can search. Every change arrives as a pull request that has to pass checks, and governance files change only through commits signed by the owner.
 
-Findings have a level of error or warning. The command exits 0 when there are no error findings, 1 when there is at least one, and 2 on a usage or internal error. Settings live in `strata.yml`; every key has a default.
+This repository holds the note format, the `strata` command that checks a notes repository in CI, and the reusable workflows a notes repository calls.
 
 ## Installation
 
@@ -53,6 +66,16 @@ strata skills sync --to .claude/skills
 ## Support
 
 Report vulnerabilities privately as described in [SECURITY.md](SECURITY.md). For other questions, open an issue.
+
+## Roadmap
+
+1. Foundation: note format, checks, governance, local search (in progress)
+2. First agent identity and `@strata` commands
+3. Connector for every Claude surface
+4. Earned autonomy with canary-tested reviews
+5. Paperless ingest
+6. Hardened self-hosted runners and vault import
+7. First public release with self-hosting documentation
 
 ## Contributing
 
