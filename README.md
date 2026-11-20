@@ -83,7 +83,7 @@ Report vulnerabilities privately as described in [SECURITY.md](SECURITY.md). For
 
 ## Contributing
 
-Contributions follow the shared guidelines in the [lucawalz/.github](https://github.com/lucawalz/.github) repository. Run the local checks before opening a pull request:
+Contributions are welcome. See [CONTRIBUTING.md](https://github.com/lucawalz/.github/blob/main/CONTRIBUTING.md) for the workflow and conventions and the [Code of Conduct](https://github.com/lucawalz/.github/blob/main/CODE_OF_CONDUCT.md) for participation. Run the local checks before opening a pull request:
 
 ```
 just check
