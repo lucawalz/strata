@@ -1,0 +1,10 @@
+---
+id: good
+type: bogus
+status: active
+summary: Synthetic summary.
+---
+
+# Title good
+
+Body text long enough to pass the minimum size check here.
