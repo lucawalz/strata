@@ -87,3 +87,41 @@ func TestScanFindsAndLocates(t *testing.T) {
 		t.Errorf("Scan = %v, want %v", got, want)
 	}
 }
+
+func luhnWith(prefix string) string {
+	for d := 0; d < 10; d++ {
+		if c := fmt.Sprintf("%s%d", prefix, d); Luhn(c) {
+			return c
+		}
+	}
+	return ""
+}
+
+func TestScanAdjacentGroups(t *testing.T) {
+	card12 := luhnWith("41111111111")
+	cases := []struct {
+		in   string
+		want []Match
+	}{
+		{"2026-11-20 4111 1111 1111 1111", []Match{{KindCard, 1, 12}}},
+		{"4111 1111 1111 1111 2026", []Match{{KindCard, 1, 1}}},
+		{"AT611904300234573201 2026", []Match{{KindIBAN, 1, 1}}},
+		{card12, []Match{{KindCard, 1, 1}}},
+		{"L01X00T47", []Match{{KindIDDocument, 1, 1}}},
+		{"CHRYSTHMY", nil},
+	}
+	for _, c := range cases {
+		if got := Scan([]byte(c.in)); fmt.Sprint(got) != fmt.Sprint(c.want) {
+			t.Errorf("Scan(%q) = %v, want %v", c.in, got, c.want)
+		}
+	}
+}
+
+func TestScanSorted(t *testing.T) {
+	text := "4111 1111 1111 1111\nDE89370400440532013000 and 4111111111111111\n"
+	got := Scan([]byte(text))
+	want := []Match{{KindCard, 1, 1}, {KindIBAN, 2, 1}, {KindCard, 2, 28}}
+	if fmt.Sprint(got) != fmt.Sprint(want) {
+		t.Errorf("Scan = %v, want %v", got, want)
+	}
+}
