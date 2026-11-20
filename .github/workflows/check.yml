@@ -27,13 +27,19 @@ jobs:
       - name: Validate inputs
         env:
           MODE: ${{ inputs.mode }}
+          ROOT: ${{ inputs.root }}
         run: |
           case "${MODE}" in
             full|tree) ;;
             *) echo "mode must be full or tree, got ${MODE}" >&2; exit 2 ;;
           esac
+          if [ "${MODE}" = full ] && [ "${ROOT}" != "." ]; then
+            echo "mode full needs root \".\", got ${ROOT}; use mode tree for a subdirectory" >&2
+            exit 2
+          fi
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
@@ -54,13 +60,13 @@ jobs:
           sha256sum --ignore-missing -c "${checksums}"
           tar -xzf "${archive}" gitleaks
       - name: Scan history for secrets
-        if: inputs.mode != 'tree' && github.event_name == 'pull_request'
+        if: inputs.mode != 'tree' && github.event.pull_request
         env:
           BASE: ${{ github.event.pull_request.base.sha }}
           HEAD: ${{ github.event.pull_request.head.sha }}
         run: "\"${RUNNER_TEMP}/gitleaks\" git --redact --log-opts \"${BASE}..${HEAD}\""
       - name: Scan pushed history for secrets
-        if: inputs.mode != 'tree' && github.event_name != 'pull_request'
+        if: inputs.mode != 'tree' && !github.event.pull_request
         run: '"${RUNNER_TEMP}/gitleaks" git --redact'
       - name: Install strata
         env:
@@ -73,7 +79,7 @@ jobs:
         run: |
           "${RUNNER_TEMP}/bin/strata" check tree --root "${ROOT}" --format github
       - name: Check diff
-        if: inputs.mode != 'tree' && github.event_name == 'pull_request'
+        if: ${{ !cancelled() && inputs.mode != 'tree' && github.event.pull_request }}
         env:
           ROOT: ${{ inputs.root }}
           BASE: ${{ github.event.pull_request.base.sha }}
