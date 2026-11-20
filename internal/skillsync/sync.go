@@ -53,6 +53,9 @@ func replace(src fs.FS, name, to string) error {
 	if err != nil {
 		return err
 	}
+	if err := os.Chmod(tmp, dirMode); err != nil {
+		return err
+	}
 	final := filepath.Join(to, name)
 	old := tmp + "-old"
 	if err := os.Rename(final, old); err != nil && !errors.Is(err, fs.ErrNotExist) {

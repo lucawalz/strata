@@ -43,6 +43,9 @@ func TestSyncReplacesShippedAndKeepsLocal(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(to, "curate", "SKILL.md")); err != nil {
 		t.Error("curate not written")
 	}
+	if info, err := os.Stat(filepath.Join(to, "capture")); err != nil || info.Mode().Perm() != 0o755 {
+		t.Errorf("capture mode: %v %v", info, err)
+	}
 }
 
 type failingFS struct {
