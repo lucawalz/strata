@@ -111,6 +111,26 @@ func TestDiffRawAndAppend(t *testing.T) {
 	}
 }
 
+func TestDiffRawRenames(t *testing.T) {
+	r, _ := newGitRepo(t)
+	r.write("inbox/x.md", "item\n")
+	r.write("raw/y.txt", "source\n")
+	base := r.commit(false, "inbox", "raw")
+	if err := os.MkdirAll(filepath.Join(r.dir, "notes"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	r.git("mv", "inbox/x.md", "raw/x.md")
+	r.git("mv", "raw/y.txt", "notes/y.txt")
+	head := r.commit(false, "raw", "notes")
+	got := diffWants(t, r, base, head)
+	if has(got, "raw", Error, "raw/x.md") {
+		t.Errorf("rename into raw flagged: %v", got)
+	}
+	if !has(got, "raw", Error, "notes/y.txt") {
+		t.Errorf("rename out of raw not flagged: %v", got)
+	}
+}
+
 func TestDiffGovernance(t *testing.T) {
 	r, pub := newGitRepo(t)
 	r.write(".github/allowed_signers", "t@example.com "+pub+"\n")

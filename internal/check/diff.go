@@ -65,9 +65,11 @@ func Diff(repo Repo, base, head string) ([]Finding, error) {
 	}
 
 	for _, c := range changes {
-		switch {
-		case c.Status == statusAdded || c.Status == statusCopied:
-		case under(c.Path, rawDir) || (c.OldPath != "" && under(c.OldPath, rawDir)):
+		src := c.Path
+		if c.Status == statusRenamed {
+			src = c.OldPath
+		}
+		if c.Status != statusAdded && c.Status != statusCopied && under(src, rawDir) {
 			add(CheckRaw, Error, c.Path, 0, "raw/ is append-only, file was changed, deleted or renamed")
 		}
 		if c.Status != statusModified || !under(c.Path, notesDir) {
