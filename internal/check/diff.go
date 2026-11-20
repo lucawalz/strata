@@ -39,8 +39,10 @@ func under(path, dir string) bool {
 }
 
 func governed(path string, paths []string) bool {
+	p := strings.ToLower(path)
 	for _, g := range paths {
-		if path == g || (strings.HasSuffix(g, "/") && strings.HasPrefix(path, g)) {
+		g = strings.TrimSuffix(strings.ToLower(g), "/")
+		if p == g || strings.HasPrefix(p, g+"/") {
 			return true
 		}
 	}
@@ -53,7 +55,11 @@ func Diff(repo Repo, base, head string) ([]Finding, error) {
 		out = append(out, Finding{Check: check, Level: level, Path: path, Line: line, Message: fmt.Sprintf(format, args...)})
 	}
 
-	changes, err := gitx.Changes(repo.Root, base, head)
+	mb, err := gitx.MergeBase(repo.Root, base, head)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %s", gitx.ErrMissingBase, base)
+	}
+	changes, err := gitx.Changes(repo.Root, mb, head)
 	if err != nil {
 		return nil, err
 	}
@@ -95,7 +101,7 @@ func Diff(repo Repo, base, head string) ([]Finding, error) {
 		}
 	}
 
-	if err := governance(repo, base, head, changes, add); err != nil {
+	if err := governance(repo, base, mb, head, changes, add); err != nil {
 		return nil, err
 	}
 
@@ -114,7 +120,7 @@ func Diff(repo Repo, base, head string) ([]Finding, error) {
 
 type adder func(check string, level Level, path string, line int, format string, args ...any)
 
-func governance(repo Repo, base, head string, changes []gitx.Change, add adder) error {
+func governance(repo Repo, base, mb, head string, changes []gitx.Change, add adder) error {
 	cfg := config.Default()
 	if raw, err := gitx.Show(repo.Root, base, configFile); err == nil {
 		if cfg, err = config.Load(raw); err != nil {
@@ -129,14 +135,15 @@ func governance(repo Repo, base, head string, changes []gitx.Change, add adder) 
 		if c.OldPath != "" {
 			paths = append(paths, c.OldPath)
 		}
-		hit := false
+		ungoverned := false
 		for _, p := range paths {
 			if governed(p, cfg.GovernancePaths) {
-				hit = true
 				touched = append(touched, p)
+			} else {
+				ungoverned = true
 			}
 		}
-		if !hit {
+		if ungoverned {
 			other = append(other, c.Path)
 		}
 	}
@@ -161,29 +168,19 @@ func governance(repo Repo, base, head string, changes []gitx.Change, add adder) 
 	if err != nil {
 		return err
 	}
-	defer os.RemoveAll(dir)
+	defer func() { _ = os.RemoveAll(dir) }()
 	signersPath := filepath.Join(dir, "allowed_signers")
 	if err := os.WriteFile(signersPath, signers, 0o600); err != nil {
 		return err
 	}
 
-	commits, err := gitx.Commits(repo.Root, base, head)
+	commits, err := gitx.Commits(repo.Root, mb, head)
 	if err != nil {
 		return err
 	}
 	for _, sha := range commits {
-		files, err := gitx.FilesChanged(repo.Root, sha)
-		if err != nil {
-			return err
-		}
-		for _, f := range files {
-			if !governed(f, cfg.GovernancePaths) {
-				continue
-			}
-			if err := gitx.Verify(repo.Root, sha, signersPath); err != nil {
-				add(CheckGovernance, Error, f, 0, "commit %s touches governance files without a valid signature", sha[:min(len(sha), shortSHA)])
-			}
-			break
+		if err := gitx.Verify(repo.Root, sha, signersPath); err != nil {
+			add(CheckGovernance, Error, touched[0], 0, "commit %s lacks a valid signature while governance files change", sha[:min(len(sha), shortSHA)])
 		}
 	}
 	return nil

@@ -128,8 +128,7 @@ func TestDiffGovernance(t *testing.T) {
 	}
 
 	r.write("AGENTS.md", "rules v3\n")
-	r.write(".github/allowed_signers", "t@example.com "+pub+"\nevil@example.com "+pub+"\n")
-	unsigned := r.commit(false, "AGENTS.md", ".github")
+	unsigned := r.commit(false, "AGENTS.md")
 	got = diffWants(t, r, base, unsigned)
 	found := false
 	for _, f := range got {
@@ -182,5 +181,124 @@ func TestDiffInjectAndPII(t *testing.T) {
 	got := diffWants(t, r, base, head)
 	if !has(got, "inject", Error, "notes/x.md") || !has(got, "pii", Error, "docs/y.txt") || has(got, "pii", Error, "raw/z.txt") {
 		t.Errorf("got %v", got)
+	}
+}
+
+func (r *gitRepo) useKey(key string) {
+	r.t.Helper()
+	r.git("config", "--file", filepath.Join(r.home, "gitconfig"), "user.signingkey", key)
+}
+
+func newKey(t *testing.T) (string, string) {
+	t.Helper()
+	key := filepath.Join(t.TempDir(), "k")
+	if out, err := exec.Command("ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-f", key).CombinedOutput(); err != nil {
+		t.Fatalf("ssh-keygen: %v\n%s", err, out)
+	}
+	pub, _ := os.ReadFile(key + ".pub")
+	return key, strings.TrimSpace(string(pub))
+}
+
+func hasMsg(fs []Finding, check string, level Level, sub string) bool {
+	for _, f := range fs {
+		if f.Check == check && f.Level == level && strings.Contains(f.Message, sub) {
+			return true
+		}
+	}
+	return false
+}
+
+func governedBase(t *testing.T) (*gitRepo, string, string) {
+	r, pub := newGitRepo(t)
+	r.write(".github/allowed_signers", "t@example.com "+pub+"\n")
+	r.write("AGENTS.md", "rules\n")
+	return r, r.commit(false, ".github", "AGENTS.md"), pub
+}
+
+func TestDiffGovernanceRename(t *testing.T) {
+	r, base, _ := governedBase(t)
+	r.git("mv", "AGENTS.md", "notes-a.md")
+	if err := os.MkdirAll(filepath.Join(r.dir, "notes"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	r.git("mv", "notes-a.md", "notes/a.md")
+	head := r.commit(false, "notes")
+	got := diffWants(t, r, base, head)
+	if !has(got, "governance", Error, "") || !has(got, "governance-isolation", Error, "") {
+		t.Errorf("got %v", got)
+	}
+}
+
+func TestDiffGovernanceMergeRollback(t *testing.T) {
+	r, pub := newGitRepo(t)
+	r.write(".github/allowed_signers", "t@example.com "+pub+"\n")
+	r.write("AGENTS.md", "rules v1\n")
+	old := r.commit(false, ".github", "AGENTS.md")
+	r.write("AGENTS.md", "rules v2\n")
+	base := r.commit(true, "AGENTS.md")
+	r.git("checkout", "-q", "-b", "side", old)
+	r.write("x.txt", "x\n")
+	r.commit(false, "x.txt")
+	r.git("merge", "-q", "--no-gpg-sign", "-s", "ours", base, "-m", "m")
+	head := r.git("rev-parse", "HEAD")
+	got := diffWants(t, r, base, head)
+	if !has(got, "governance", Error, "") {
+		t.Errorf("got %v", got)
+	}
+}
+
+func TestDiffGovernedPathVariants(t *testing.T) {
+	cases := []struct {
+		path    string
+		entries []string
+		want    bool
+	}{
+		{"Claude.md", []string{"CLAUDE.md"}, true},
+		{".Claude/settings.json", []string{".claude/"}, true},
+		{".github/workflows/x.yml", []string{".github"}, true},
+		{".claude", []string{".claude/"}, true},
+		{".github/workflows/x.yml", []string{".github/"}, true},
+		{".githubx/a", []string{".github"}, false},
+		{"notes/a.md", []string{".github/", "AGENTS.md"}, false},
+	}
+	for _, c := range cases {
+		if got := governed(c.path, c.entries); got != c.want {
+			t.Errorf("governed(%q, %v) = %v", c.path, c.entries, got)
+		}
+	}
+}
+
+func TestDiffGovernanceHeadKeySwap(t *testing.T) {
+	r, base, _ := governedBase(t)
+	key2, pub2 := newKey(t)
+	r.write(".github/allowed_signers", "t@example.com "+pub2+"\n")
+	r.write("AGENTS.md", "rules v2\n")
+	r.useKey(key2)
+	head := r.commit(true, ".github", "AGENTS.md")
+	got := diffWants(t, r, base, head)
+	if !hasMsg(got, "governance", Error, head[:12]) {
+		t.Errorf("got %v", got)
+	}
+}
+
+func TestDiffMovedBase(t *testing.T) {
+	r, pub := newGitRepo(t)
+	r.write(".github/allowed_signers", "t@example.com "+pub+"\n")
+	r.write("AGENTS.md", "rules\n")
+	r.write("notes/x.md", "text\n")
+	fork := r.commit(false, ".github", "AGENTS.md", "notes")
+	r.git("checkout", "-q", "-b", "pr")
+	r.write("notes/y.md", "other\n")
+	head := r.commit(false, "notes")
+	r.git("checkout", "-q", "main")
+	r.write("raw/new.txt", "new\n")
+	r.write("AGENTS.md", "rules v2\n")
+	moved := r.commit(true, "raw", "AGENTS.md")
+	_ = fork
+	got := diffWants(t, r, moved, head)
+	for _, f := range got {
+		if f.Check == "raw" || f.Check == "governance-isolation" || f.Check == "governance" || f.Check == "governance-summary" {
+			t.Errorf("unexpected %v in %v", f, got)
+		}
 	}
 }

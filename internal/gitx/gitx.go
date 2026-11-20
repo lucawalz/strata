@@ -120,7 +120,7 @@ func FilesChanged(root, sha string) ([]string, error) {
 	if len(parents) == 0 {
 		out, err = run(root, "diff-tree", "-r", "--root", "--no-commit-id", "--name-only", "-z", sha)
 	} else {
-		out, err = run(root, "diff", "--name-only", "-z", parents[0], sha)
+		out, err = run(root, "diff", "--no-renames", "--name-only", "-z", parents[0], sha)
 	}
 	if err != nil {
 		return nil, err
@@ -132,6 +132,14 @@ func FilesChanged(root, sha string) ([]string, error) {
 		}
 	}
 	return files, nil
+}
+
+func MergeBase(root, a, b string) (string, error) {
+	out, err := run(root, "merge-base", a, b)
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(out)), nil
 }
 
 func Show(root, rev, path string) ([]byte, error) {
