@@ -140,3 +140,11 @@ func TestGovernanceSummaryFile(t *testing.T) {
 		t.Errorf("summary %q out %q", got, out)
 	}
 }
+
+func TestCalibrateMissingKey(t *testing.T) {
+	t.Setenv("ANTHROPIC_API_KEY", "")
+	code, _, errb := exec1(t, "calibrate", "--model", "m", t.TempDir())
+	if code != exitUsage || !strings.Contains(errb, "ANTHROPIC_API_KEY") {
+		t.Fatalf("code %d stderr %q", code, errb)
+	}
+}

@@ -1,15 +1,18 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"flag"
 	"fmt"
 	"io"
 	"io/fs"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/lucawalz/strata/internal/calibrate"
 	"github.com/lucawalz/strata/internal/check"
 	"github.com/lucawalz/strata/internal/config"
 	"github.com/lucawalz/strata/internal/gitx"
@@ -22,7 +25,10 @@ const (
 
 	formatText   = "text"
 	formatGitHub = "github"
-	usage        = "usage: strata check tree [--root DIR] [--format text|github]\n       strata check diff --base SHA --head SHA [--root DIR] [--format text|github]\n       strata audit --before SHA --after SHA [--root DIR] [--format text|github]"
+
+	anthropicURL = "https://api.anthropic.com"
+	apiKeyEnv    = "ANTHROPIC_API_KEY"
+	usage        = "usage: strata check tree [--root DIR] [--format text|github]\n       strata check diff --base SHA --head SHA [--root DIR] [--format text|github]\n       strata audit --before SHA --after SHA [--root DIR] [--format text|github]\n       strata calibrate --model MODEL DIR"
 )
 
 var githubEscapes = strings.NewReplacer("%", "%25", "\r", "%0D", "\n", "%0A")
@@ -42,6 +48,9 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return fail(stderr, "%s", usage)
 	}
 	cmd, rest := args[0], args[1:]
+	if cmd == "calibrate" {
+		return runCalibrate(rest, stdout, stderr)
+	}
 	var sub string
 	switch cmd {
 	case "check":
@@ -105,6 +114,37 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return fail(stderr, "%v", err)
 	}
 	return report(findings, *format, stdout, stderr)
+}
+
+func runCalibrate(args []string, stdout, stderr io.Writer) int {
+	flags := flag.NewFlagSet("calibrate", flag.ContinueOnError)
+	flags.SetOutput(stderr)
+	model := flags.String("model", "", "model name")
+	if err := flags.Parse(args); err != nil || flags.NArg() != 1 || *model == "" {
+		return fail(stderr, "%s", usage)
+	}
+	apiKey := os.Getenv(apiKeyEnv)
+	if apiKey == "" {
+		return fail(stderr, "%s is not set", apiKeyEnv)
+	}
+	var files []string
+	err := filepath.WalkDir(flags.Arg(0), func(path string, d fs.DirEntry, err error) error {
+		if err == nil && !d.IsDir() && filepath.Ext(path) == ".md" {
+			files = append(files, path)
+		}
+		return err
+	})
+	if err != nil {
+		return fail(stderr, "%v", err)
+	}
+	res, err := calibrate.Run(context.Background(), http.DefaultClient, anthropicURL, apiKey, *model, files)
+	if err != nil {
+		return fail(stderr, "%v", err)
+	}
+	caps := res.ProposedCaps()
+	_, _ = fmt.Fprintf(stdout, "notes %d chars %d tokens %d chars_per_token %.2f\ntarget_min_chars %d\ntarget_max_chars %d\nhard_max_chars %d\n",
+		res.Notes, res.Chars, res.Tokens, res.CharsPerToken, caps[0], caps[1], caps[2])
+	return exitOK
 }
 
 func loadConfig(root string) (config.Config, error) {
