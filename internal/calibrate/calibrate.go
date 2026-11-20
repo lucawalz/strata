@@ -51,6 +51,9 @@ func Run(ctx context.Context, client *http.Client, baseURL, apiKey, model string
 		case !errors.Is(err, note.ErrNoFrontmatter):
 			return Result{}, fmt.Errorf("%s: %w", path, err)
 		}
+		if len(bytes.TrimSpace(body)) == 0 {
+			continue
+		}
 		tokens, err := countTokens(ctx, client, baseURL, apiKey, model, string(body))
 		if err != nil {
 			return Result{}, fmt.Errorf("%s: %w", path, err)

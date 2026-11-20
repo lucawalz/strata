@@ -104,3 +104,32 @@ func TestRunNamesFileWithBrokenFrontmatter(t *testing.T) {
 		t.Fatalf("want error naming %s, got %v", p, err)
 	}
 }
+
+func TestRunSkipsEmptyNotes(t *testing.T) {
+	dir := t.TempDir()
+	normal := filepath.Join(dir, "a.md")
+	empty := filepath.Join(dir, "b.md")
+	emptyBody := filepath.Join(dir, "c.md")
+	if err := os.WriteFile(normal, []byte("---\nid: x\ntype: concept\nstatus: active\nsummary: s\n---\n"+strings.Repeat("a", 1000)), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(empty, nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(emptyBody, []byte("---\nid: y\ntype: concept\nstatus: active\nsummary: s\n---\n \n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	requests := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests++
+		_, _ = w.Write([]byte(`{"input_tokens": 250}`))
+	}))
+	defer srv.Close()
+	res, err := Run(context.Background(), srv.Client(), srv.URL, "k", "m", []string{normal, empty, emptyBody})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Notes != 1 || res.Chars != 1000 || res.Tokens != 250 || requests != 1 {
+		t.Fatalf("want 1 note and 1 request, got %+v with %d requests", res, requests)
+	}
+}
