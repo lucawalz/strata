@@ -15,7 +15,7 @@ func Audit(repo Repo, before, after string) ([]Finding, error) {
 	if before == zeroSHA {
 		return nil, nil
 	}
-	g, err := loadGovernance(repo.Root, after)
+	g, err := loadGovernance(repo.Root, before)
 	if err != nil {
 		return nil, err
 	}

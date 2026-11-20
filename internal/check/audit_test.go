@@ -45,6 +45,31 @@ func TestAuditSingleParentSignedStillFails(t *testing.T) {
 	}
 }
 
+func TestAuditConfigFromBefore(t *testing.T) {
+	r, base, _ := governedBase(t)
+	r.write("strata.yml", "governance_paths: [\"nothing-here/\"]\n")
+	r.write(".github/workflow.yml", "a\n")
+	head := r.commit(false, "strata.yml", ".github")
+	if got := auditWants(t, r, base, head); !hasMsg(got, "audit", Error, head[:12]) {
+		t.Errorf("got %v", got)
+	}
+}
+
+func TestAuditSignersFromBefore(t *testing.T) {
+	r, base, pub := governedBase(t)
+	key2, pub2 := newKey(t)
+	r.git("checkout", "-q", "-b", "side", base)
+	r.write(".github/allowed_signers", "t@example.com "+pub+"\nt@example.com "+pub2+"\n")
+	r.useKey(key2)
+	bad := r.commit(true, ".github")
+	r.git("checkout", "-q", "main")
+	r.git("merge", "-q", "--no-ff", "--no-gpg-sign", "side", "-m", "m")
+	head := r.git("rev-parse", "HEAD")
+	if got := auditWants(t, r, base, head); !hasMsg(got, "audit", Error, bad[:12]) {
+		t.Errorf("got %v", got)
+	}
+}
+
 func TestAuditEmptySigners(t *testing.T) {
 	r, _ := newGitRepo(t)
 	r.write(".github/allowed_signers", "")
