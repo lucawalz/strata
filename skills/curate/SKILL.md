@@ -35,7 +35,7 @@ The repository's AGENTS.md is authoritative; this skill summarises the workflow.
 
 ## Rules
 
-- Governance changes (`.github/`, `AGENTS.md`, `CLAUDE.md`, `.claude/`, `strata.yml`) go in their own pull request, never mixed with notes.
+- Governance changes (`.github/`, `AGENTS.md` and `CLAUDE.md` at any depth, `CLAUDE.local.md`, `.claude/`, `.mcp.json`, `justfile`, `scripts/`, `strata.yml`) go in their own pull request, never mixed with notes.
 - Commit with a one-line Conventional Commit of 7 to 12 words, for example `feat(notes): merge tcp congestion lecture into transport note`.
 - Never put personal identifiers into a note; stop and ask the owner instead.
 

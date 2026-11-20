@@ -38,7 +38,7 @@ func Default() Config {
 			HardMaxChars:   defaultHardMaxChars,
 		},
 		MaxTags:         defaultMaxTags,
-		GovernancePaths: []string{".github/", "AGENTS.md", "CLAUDE.md", ".claude/", "strata.yml"},
+		GovernancePaths: []string{".github/", "AGENTS.md", "CLAUDE.md", "CLAUDE.local.md", ".claude/", ".mcp.json", "justfile", "scripts/", "strata.yml"},
 		AllowedSigners:  defaultAllowedSigners,
 	}
 }

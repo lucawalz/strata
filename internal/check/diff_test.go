@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/lucawalz/strata/internal/config"
 )
 
 type gitRepo struct {
@@ -282,9 +284,25 @@ func TestDiffGovernedPathVariants(t *testing.T) {
 		{"notes/a.md", []string{".github/", "AGENTS.md"}, false},
 	}
 	for _, c := range cases {
-		if got := governed(c.path, c.entries); got != c.want {
+		cfg := config.Config{GovernancePaths: c.entries, AllowedSigners: "keys/signers"}
+		if got := governed(c.path, cfg); got != c.want {
 			t.Errorf("governed(%q, %v) = %v", c.path, c.entries, got)
 		}
+	}
+	always := []string{"raw/CLAUDE.md", "inbox/sub/AGENTS.md", "notes/x/claude.md", "strata.yml", "keys/signers"}
+	for _, p := range always {
+		if !governed(p, config.Config{GovernancePaths: []string{"nothing-here/"}, AllowedSigners: "keys/signers"}) {
+			t.Errorf("governed(%q) = false with custom paths", p)
+		}
+	}
+	defaults := []string{"CLAUDE.local.md", ".mcp.json", "justfile", "scripts/setup.sh", ".github/allowed_signers"}
+	for _, p := range defaults {
+		if !governed(p, config.Default()) {
+			t.Errorf("governed(%q) = false with defaults", p)
+		}
+	}
+	if governed("notes/scripts.md", config.Default()) {
+		t.Error("notes/scripts.md governed")
 	}
 }
 

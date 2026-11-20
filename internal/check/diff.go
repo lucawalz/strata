@@ -38,9 +38,16 @@ func under(path, dir string) bool {
 	return strings.HasPrefix(path, dir+"/")
 }
 
-func governed(path string, paths []string) bool {
+func governed(path string, cfg config.Config) bool {
 	p := strings.ToLower(path)
-	for _, g := range paths {
+	switch p[strings.LastIndexByte(p, '/')+1:] {
+	case "agents.md", "claude.md":
+		return true
+	}
+	if p == configFile || p == strings.ToLower(cfg.AllowedSigners) {
+		return true
+	}
+	for _, g := range cfg.GovernancePaths {
 		g = strings.TrimSuffix(strings.ToLower(g), "/")
 		if p == g || strings.HasPrefix(p, g+"/") {
 			return true
@@ -177,7 +184,7 @@ func governance(repo Repo, base, mb, head string, changes []gitx.Change, add add
 		}
 		ungoverned := false
 		for _, p := range paths {
-			if governed(p, cfg.GovernancePaths) {
+			if governed(p, cfg) {
 				touched = append(touched, p)
 			} else {
 				ungoverned = true

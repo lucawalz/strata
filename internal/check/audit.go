@@ -29,7 +29,7 @@ func Audit(repo Repo, before, after string) ([]Finding, error) {
 	}
 	first := func(files []string) string {
 		for _, f := range files {
-			if governed(f, g.cfg.GovernancePaths) {
+			if governed(f, g.cfg) {
 				return f
 			}
 		}

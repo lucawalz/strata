@@ -30,7 +30,7 @@ Turning material into notes is the curate skill.
 ## Rules
 
 - One capture per pull request unless the items belong together.
-- Never touch `notes/`, `archive/` or governance paths (`.github/`, `AGENTS.md`, `CLAUDE.md`, `.claude/`, `strata.yml`) in a capture.
+- Never touch `notes/`, `archive/` or governance paths (`.github/`, `AGENTS.md` and `CLAUDE.md` at any depth, `CLAUDE.local.md`, `.claude/`, `.mcp.json`, `justfile`, `scripts/`, `strata.yml`) in a capture.
 - Run `strata check tree` when the binary is available and fix any finding before opening the pull request.
 
 See scenarios.md for worked cases.
