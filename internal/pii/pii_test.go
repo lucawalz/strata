@@ -117,6 +117,29 @@ func TestScanAdjacentGroups(t *testing.T) {
 	}
 }
 
+func TestScanPrintedForms(t *testing.T) {
+	steuer := fmt.Sprintf("1234567891%d", steuerCheckDigit("1234567891"))
+	rvnr := rvnrWith("65", "170839", 'J', "00")
+	cases := []struct {
+		in   string
+		want []Match
+	}{
+		{steuer[:2] + " " + steuer[2:5] + " " + steuer[5:8] + " " + steuer[8:], []Match{{KindSteuerID, 1, 1}}},
+		{rvnr[:2] + " " + rvnr[2:8] + " " + rvnr[8:9] + " " + rvnr[9:], []Match{{KindRVNR, 1, 1}}},
+		{"de89 3704 0044 0532 0130 00", []Match{{KindIBAN, 1, 1}}},
+		{"Konto:\u00a0DE89\u00a03704\u00a00044\u00a00532\u00a00130\u00a000", []Match{{KindIBAN, 1, 8}}},
+		{"DE89\u202f3704\u202f0044\u202f0532\u202f0130\u202f00", []Match{{KindIBAN, 1, 1}}},
+		{"DE89-3704-0044-0532-0130-00", []Match{{KindIBAN, 1, 1}}},
+		{"4111.1111.1111.1111", []Match{{KindCard, 1, 1}}},
+		{"4111/1111/1111/1111", []Match{{KindCard, 1, 1}}},
+	}
+	for _, c := range cases {
+		if got := Scan([]byte(c.in)); fmt.Sprint(got) != fmt.Sprint(c.want) {
+			t.Errorf("Scan(%q) = %v, want %v", c.in, got, c.want)
+		}
+	}
+}
+
 func TestScanSorted(t *testing.T) {
 	text := "4111 1111 1111 1111\nDE89370400440532013000 and 4111111111111111\n"
 	got := Scan([]byte(text))

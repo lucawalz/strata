@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"unicode/utf8"
 )
 
 const (
@@ -26,6 +27,7 @@ const (
 	rvnrLen       = 12
 	idDocBase     = 9
 
+	separators       = "\u00a0\u202f-./"
 	idPrefixAlphabet = "LMNPRTVWXYCFGHJK"
 	idAlphabet       = "0123456789CFGHJKLMNPRTVWXYZ"
 )
@@ -37,8 +39,8 @@ var (
 	ibanRunRe    = regexp.MustCompile(`\b[A-Z]{2}[0-9]{2}[A-Z0-9]*(?: [A-Z0-9]+)*`)
 	cardRunRe    = regexp.MustCompile(`[0-9]+(?:[ -][0-9]+)*`)
 	digitGroupRe = regexp.MustCompile(`[0-9]+`)
-	steuerRe     = regexp.MustCompile(`\b[0-9]{11}\b`)
-	rvnrRe       = regexp.MustCompile(`\b[0-9]{8}[A-Z][0-9]{3}\b`)
+	steuerRe     = regexp.MustCompile(`\b[0-9]{2} ?[0-9]{3} ?[0-9]{3} ?[0-9]{3}\b`)
+	rvnrRe       = regexp.MustCompile(`\b[0-9]{2} ?[0-9]{6} ?[A-Z] ?[0-9]{3}\b`)
 	idDocRe      = regexp.MustCompile(`\b[CFGHJKLMNPRTVWXY][0-9CFGHJKLMNPRTVWXYZ]{7,8}[0-9]\b`)
 )
 
@@ -270,20 +272,45 @@ func idSerialShape(s string) bool {
 	return letters && digits
 }
 
-func Scan(text []byte) []Match {
+func normalize(text []byte) ([]byte, []int) {
+	norm := make([]byte, 0, len(text))
+	offs := make([]int, 0, len(text))
+	for i := 0; i < len(text); {
+		r, n := utf8.DecodeRune(text[i:])
+		switch {
+		case strings.ContainsRune(separators, r):
+			norm, offs = append(norm, ' '), append(offs, i)
+		case r >= 'a' && r <= 'z':
+			norm, offs = append(norm, byte(r-'a'+'A')), append(offs, i)
+		default:
+			for k := range n {
+				norm, offs = append(norm, text[i+k]), append(offs, i+k)
+			}
+		}
+		i += n
+	}
+	return norm, offs
+}
+
+func unspaced(b []byte) string {
+	return strings.ReplaceAll(string(b), " ", "")
+}
+
+func Scan(orig []byte) []Match {
 	var out []Match
+	text, offs := normalize(orig)
 	collect := func(kind string) func(int) {
-		return func(off int) { out = append(out, position(text, off, kind)) }
+		return func(off int) { out = append(out, position(orig, offs[off], kind)) }
 	}
 	scanIBANs(text, collect(KindIBAN))
 	scanCards(text, collect(KindCard))
 	for _, loc := range steuerRe.FindAllIndex(text, -1) {
-		if SteuerID(string(text[loc[0]:loc[1]])) {
+		if SteuerID(unspaced(text[loc[0]:loc[1]])) {
 			collect(KindSteuerID)(loc[0])
 		}
 	}
 	for _, loc := range rvnrRe.FindAllIndex(text, -1) {
-		if RVNR(string(text[loc[0]:loc[1]])) {
+		if RVNR(unspaced(text[loc[0]:loc[1]])) {
 			collect(KindRVNR)(loc[0])
 		}
 	}
