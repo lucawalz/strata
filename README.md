@@ -83,7 +83,7 @@ Report vulnerabilities privately as described in [SECURITY.md](SECURITY.md). For
 
 ## Contributing
 
-Contributions are welcome. See [CONTRIBUTING.md](https://github.com/lucawalz/.github/blob/main/CONTRIBUTING.md) for the workflow and conventions and the [Code of Conduct](https://github.com/lucawalz/.github/blob/main/CODE_OF_CONDUCT.md) for participation. Run the local checks before opening a pull request:
+Contributions are welcome. See [CONTRIBUTING.md](https://github.com/lucawalz/.github/blob/main/CONTRIBUTING.md) for the workflow and conventions and the [Code of Conduct](https://github.com/lucawalz/.github/blob/main/CODE_OF_CONDUCT.md) for participation, and the architecture decision records under [docs/adr/](docs/adr/) for the reasoning behind the major design choices. Run the local checks before opening a pull request:
 
 ```
 just check
