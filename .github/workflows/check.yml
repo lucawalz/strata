@@ -24,6 +24,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
+      - name: Validate inputs
+        env:
+          MODE: ${{ inputs.mode }}
+        run: |
+          case "${MODE}" in
+            full|tree) ;;
+            *) echo "mode must be full or tree, got ${MODE}" >&2; exit 2 ;;
+          esac
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
@@ -33,33 +41,34 @@ jobs:
           go-version: stable
           cache: false
       - name: Install gitleaks
-        if: inputs.mode == 'full'
+        if: inputs.mode != 'tree'
         env:
           VERSION: ${{ inputs.gitleaks-version }}
         run: |
           base="https://github.com/gitleaks/gitleaks/releases/download/v${VERSION}"
           archive="gitleaks_${VERSION}_linux_x64.tar.gz"
           checksums="gitleaks_${VERSION}_checksums.txt"
+          cd "${RUNNER_TEMP}"
           curl -fsSLO "${base}/${archive}"
           curl -fsSLO "${base}/${checksums}"
           sha256sum --ignore-missing -c "${checksums}"
           tar -xzf "${archive}" gitleaks
       - name: Scan history for secrets
-        if: inputs.mode == 'full' && github.event_name == 'pull_request'
+        if: inputs.mode != 'tree' && github.event_name == 'pull_request'
         env:
           BASE: ${{ github.event.pull_request.base.sha }}
           HEAD: ${{ github.event.pull_request.head.sha }}
-        run: ./gitleaks git --log-opts "${BASE}..${HEAD}"
+        run: "\"${RUNNER_TEMP}/gitleaks\" git --redact --log-opts \"${BASE}..${HEAD}\""
       - name: Scan pushed history for secrets
-        if: inputs.mode == 'full' && github.event_name != 'pull_request'
-        run: ./gitleaks git
+        if: inputs.mode != 'tree' && github.event_name != 'pull_request'
+        run: '"${RUNNER_TEMP}/gitleaks" git --redact'
       - name: Check tree
         env:
           ROOT: ${{ inputs.root }}
           STRATA_REF: ${{ fromJSON(toJSON(job)).workflow_sha }}
         run: go run "github.com/lucawalz/strata/cmd/strata@${STRATA_REF}" check tree --root "${ROOT}" --format github
       - name: Check diff
-        if: inputs.mode == 'full' && github.event_name == 'pull_request'
+        if: inputs.mode != 'tree' && github.event_name == 'pull_request'
         env:
           ROOT: ${{ inputs.root }}
           STRATA_REF: ${{ fromJSON(toJSON(job)).workflow_sha }}
