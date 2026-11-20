@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/lucawalz/strata/schema/note.schema.json",
+  "type": "object",
+  "required": ["id", "type", "status", "summary"],
+  "additionalProperties": false,
+  "properties": {
+    "id": { "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$" },
+    "type": { "enum": ["concept", "howto", "decision", "person", "source-summary"] },
+    "status": { "enum": ["active", "superseded"] },
+    "summary": { "type": "string", "maxLength": 200 },
+    "superseded_by": { "type": "string" },
+    "tags": { "type": "array", "items": { "type": "string" } },
+    "sources": { "type": "array", "items": { "type": "string" } },
+    "refs": { "type": "array", "items": { "type": "string", "pattern": "^[a-z]+:[A-Za-z0-9._-]+$" } }
+  }
+}

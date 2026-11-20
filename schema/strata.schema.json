@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/lucawalz/strata/schema/strata.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "caps": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "target_min_chars": { "type": "integer", "minimum": 1 },
+        "target_max_chars": { "type": "integer", "minimum": 1 },
+        "hard_max_chars": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "max_tags": { "type": "integer", "minimum": 1 },
+    "governance_paths": { "type": "array", "items": { "type": "string" } },
+    "allowed_signers": { "type": "string" }
+  }
+}
