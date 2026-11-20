@@ -62,16 +62,21 @@ jobs:
       - name: Scan pushed history for secrets
         if: inputs.mode != 'tree' && github.event_name != 'pull_request'
         run: '"${RUNNER_TEMP}/gitleaks" git --redact'
+      - name: Install strata
+        env:
+          STRATA_REF: ${{ fromJSON(toJSON(job)).workflow_sha }}
+          GOBIN: ${{ runner.temp }}/bin
+        run: go install "github.com/lucawalz/strata/cmd/strata@${STRATA_REF}"
       - name: Check tree
         env:
           ROOT: ${{ inputs.root }}
-          STRATA_REF: ${{ fromJSON(toJSON(job)).workflow_sha }}
-        run: go run "github.com/lucawalz/strata/cmd/strata@${STRATA_REF}" check tree --root "${ROOT}" --format github
+        run: |
+          "${RUNNER_TEMP}/bin/strata" check tree --root "${ROOT}" --format github
       - name: Check diff
         if: inputs.mode != 'tree' && github.event_name == 'pull_request'
         env:
           ROOT: ${{ inputs.root }}
-          STRATA_REF: ${{ fromJSON(toJSON(job)).workflow_sha }}
           BASE: ${{ github.event.pull_request.base.sha }}
           HEAD: ${{ github.event.pull_request.head.sha }}
-        run: go run "github.com/lucawalz/strata/cmd/strata@${STRATA_REF}" check diff --root "${ROOT}" --base "${BASE}" --head "${HEAD}" --format github
+        run: |
+          "${RUNNER_TEMP}/bin/strata" check diff --root "${ROOT}" --base "${BASE}" --head "${HEAD}" --format github

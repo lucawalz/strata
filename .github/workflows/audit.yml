@@ -31,15 +31,19 @@ jobs:
         with:
           go-version: stable
           cache: false
+      - name: Install strata
+        env:
+          STRATA_REF: ${{ fromJSON(toJSON(job)).workflow_sha }}
+          GOBIN: ${{ runner.temp }}/bin
+        run: go install "github.com/lucawalz/strata/cmd/strata@${STRATA_REF}"
       - name: Audit governance commits
         id: audit
         env:
-          STRATA_REF: ${{ fromJSON(toJSON(job)).workflow_sha }}
           BEFORE: ${{ github.event.before }}
           AFTER: ${{ github.event.after }}
         run: |
           code=0
-          go run "github.com/lucawalz/strata/cmd/strata@${STRATA_REF}" audit --before "${BEFORE}" --after "${AFTER}" --format github || code=$?
+          "${RUNNER_TEMP}/bin/strata" audit --before "${BEFORE}" --after "${AFTER}" --format github || code=$?
           echo "code=${code}" >> "${GITHUB_OUTPUT}"
           exit "${code}"
 
