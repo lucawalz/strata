@@ -1,0 +1,49 @@
+name: gate
+
+on:
+  workflow_call:
+    inputs:
+      result:
+        description: Aggregate result of the caller check jobs
+        required: true
+        type: string
+      head-sha:
+        description: Commit the gate check run is attached to
+        required: true
+        type: string
+    secrets:
+      GATE_APP_ID:
+        required: true
+      GATE_APP_PRIVATE_KEY:
+        required: true
+
+permissions: {}
+
+jobs:
+  gate:
+    name: gate
+    runs-on: ubuntu-latest
+    environment: gate
+    permissions: {}
+    steps:
+      - id: app-token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          app-id: ${{ secrets.GATE_APP_ID }}
+          private-key: ${{ secrets.GATE_APP_PRIVATE_KEY }}
+          permission-checks: write
+      - name: Report gate check run
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          REPO: ${{ github.repository }}
+          HEAD_SHA: ${{ inputs.head-sha }}
+          RESULT: ${{ inputs.result }}
+        run: |
+          conclusion=failure
+          if [ "$RESULT" = success ]; then conclusion=success; fi
+          gh api -X POST "repos/$REPO/check-runs" \
+            -f name=strata/gate \
+            -f head_sha="$HEAD_SHA" \
+            -f status=completed \
+            -f conclusion="$conclusion" \
+            --silent
