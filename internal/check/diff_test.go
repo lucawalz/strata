@@ -133,6 +133,21 @@ func TestDiffRawRenames(t *testing.T) {
 	}
 }
 
+func TestDiffAppendAgainstMergeBase(t *testing.T) {
+	r, _ := newGitRepo(t)
+	r.write("notes/x.md", "a\nb\n")
+	r.commit(false, "notes")
+	r.git("checkout", "-q", "-b", "pr")
+	r.write("notes/x.md", "a\nb\nc\n")
+	head := r.commit(false, "notes")
+	r.git("checkout", "-q", "main")
+	r.write("notes/x.md", "a\nchanged\n")
+	base := r.commit(false, "notes")
+	if got := diffWants(t, r, base, head); !has(got, "append", Warning, "notes/x.md") {
+		t.Errorf("got %v", got)
+	}
+}
+
 func TestDiffGovernance(t *testing.T) {
 	r, pub := newGitRepo(t)
 	r.write(".github/allowed_signers", "t@example.com "+pub+"\n")

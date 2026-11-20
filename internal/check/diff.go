@@ -82,7 +82,7 @@ func Diff(repo Repo, base, head string) ([]Finding, error) {
 		if c.Status != statusModified || !under(c.Path, notesDir) {
 			continue
 		}
-		if ok, err := gitx.AddedOnly(repo.Root, base, head, c.Path); err != nil {
+		if ok, err := gitx.AddedOnly(repo.Root, mb, head, c.Path); err != nil {
 			return nil, err
 		} else if ok {
 			add(CheckAppend, Warning, c.Path, 0, "note changed by appending lines only")
