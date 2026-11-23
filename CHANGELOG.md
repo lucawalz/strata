@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.1](https://github.com/lucawalz/strata/compare/v0.1.0...v0.1.1) (2026-11-23)
+
+
+### Bug Fixes
+
+* **skills:** keep personal identifiers out of the shipped skill scenarios ([090e2f0](https://github.com/lucawalz/strata/commit/090e2f00a0cdd95f35be2b44454f8e28b4a63e98))
+
 ## 0.1.0 (2026-11-23)
 
 
