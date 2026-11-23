@@ -251,6 +251,19 @@ func TestListFilesUserIgnore(t *testing.T) {
 	}
 }
 
+func TestListFilesNestedRepository(t *testing.T) {
+	r := newRepo(t)
+	r.write("a.md", "a")
+	r.write("tools/nested/f.txt", "x")
+	if err := exec.Command("git", "-C", filepath.Join(r.dir, "tools", "nested"), "init", "-q").Run(); err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"a.md"}
+	if got := listSorted(t, r.dir); !reflect.DeepEqual(got, want) {
+		t.Fatalf("got %v, want %v", got, want)
+	}
+}
+
 func TestListFilesOddNames(t *testing.T) {
 	r := newRepo(t)
 	r.write("notes/a b.md", "a")

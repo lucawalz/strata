@@ -61,13 +61,12 @@ func Tree(repo Repo) ([]Finding, error) {
 	var notes []parsed
 	for _, d := range []string{notesDir, archiveDir} {
 		for _, rel := range markdownFiles(tracked, d) {
-			f := filepath.Join(repo.Root, filepath.FromSlash(rel))
-			src, err := os.ReadFile(f)
-			if errors.Is(err, fs.ErrNotExist) {
-				continue
-			}
+			src, ok, err := readTracked(repo.Root, rel)
 			if err != nil {
 				return nil, err
+			}
+			if !ok {
+				continue
 			}
 			n, err := note.Parse(rel, src)
 			if err != nil {
@@ -77,7 +76,7 @@ func Tree(repo Repo) ([]Finding, error) {
 			for _, e := range schema.ValidateNote(n.RawFrontmatter) {
 				add(CheckFrontmatter, Error, rel, frontmatterL, "%v", e)
 			}
-			notes = append(notes, parsed{rel: rel, dir: filepath.Dir(f), archive: d == archiveDir, note: n})
+			notes = append(notes, parsed{rel: rel, dir: filepath.Dir(filepath.Join(repo.Root, filepath.FromSlash(rel))), archive: d == archiveDir, note: n})
 		}
 	}
 
@@ -157,12 +156,12 @@ func Tree(repo Repo) ([]Finding, error) {
 
 	for _, d := range []string{notesDir, inboxDir} {
 		for _, rel := range markdownFiles(tracked, d) {
-			src, err := os.ReadFile(filepath.Join(repo.Root, filepath.FromSlash(rel)))
-			if errors.Is(err, fs.ErrNotExist) {
-				continue
-			}
+			src, ok, err := readTracked(repo.Root, rel)
 			if err != nil {
 				return nil, err
+			}
+			if !ok {
+				continue
 			}
 			for _, m := range inject.Scan(src) {
 				add(CheckInject, injectLevel(m), rel, m.Line, "%s at column %d", m.Kind, m.Col)
@@ -174,14 +173,11 @@ func Tree(repo Repo) ([]Finding, error) {
 		if strings.HasPrefix(rel, rawDir+"/") {
 			continue
 		}
-		src, err := os.ReadFile(filepath.Join(repo.Root, filepath.FromSlash(rel)))
-		if errors.Is(err, fs.ErrNotExist) {
-			continue
-		}
+		src, ok, err := readTracked(repo.Root, rel)
 		if err != nil {
 			return nil, err
 		}
-		if !isText(src) {
+		if !ok || !isText(src) {
 			continue
 		}
 		for _, m := range pii.Scan(src) {
@@ -200,6 +196,18 @@ func Tree(repo Repo) ([]Finding, error) {
 		return a.Check < b.Check
 	})
 	return out, nil
+}
+
+func readTracked(root, rel string) ([]byte, bool, error) {
+	path := filepath.Join(root, filepath.FromSlash(rel))
+	if info, err := os.Stat(path); err == nil && info.IsDir() {
+		return nil, false, nil
+	}
+	src, err := os.ReadFile(path)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil, false, nil
+	}
+	return src, err == nil, err
 }
 
 func markdownFiles(files []string, dir string) []string {

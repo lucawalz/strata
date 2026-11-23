@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"slices"
 	"strings"
 )
 
@@ -17,10 +18,8 @@ type Change struct {
 	OldPath string
 }
 
-func run(root string, args ...string) ([]byte, error) {
-	cmd := exec.Command("git", args...)
-	cmd.Dir = root
-	cmd.Env = []string{
+func isolatedEnv() []string {
+	return []string{
 		"PATH=" + os.Getenv("PATH"),
 		"HOME=" + os.DevNull,
 		"GIT_CONFIG_NOSYSTEM=1",
@@ -28,6 +27,27 @@ func run(root string, args ...string) ([]byte, error) {
 		"GIT_TERMINAL_PROMPT=0",
 		"GIT_OPTIONAL_LOCKS=0",
 	}
+}
+
+func userEnv() []string {
+	return []string{
+		"PATH=" + os.Getenv("PATH"),
+		"HOME=" + os.Getenv("HOME"),
+		"XDG_CONFIG_HOME=" + os.Getenv("XDG_CONFIG_HOME"),
+		"GIT_CONFIG_NOSYSTEM=1",
+		"GIT_TERMINAL_PROMPT=0",
+		"GIT_OPTIONAL_LOCKS=0",
+	}
+}
+
+func run(root string, args ...string) ([]byte, error) {
+	return runEnv(root, isolatedEnv(), args...)
+}
+
+func runEnv(root string, env []string, args ...string) ([]byte, error) {
+	cmd := exec.Command("git", args...)
+	cmd.Dir = root
+	cmd.Env = env
 	var out, errb bytes.Buffer
 	cmd.Stdout = &out
 	cmd.Stderr = &errb
@@ -38,31 +58,17 @@ func run(root string, args ...string) ([]byte, error) {
 }
 
 func ListFiles(root string) ([]string, error) {
-	cmd := exec.Command("git", "ls-files", "-z", "-co", "--exclude-standard")
-	cmd.Dir = root
-	cmd.Env = []string{
-		"PATH=" + os.Getenv("PATH"),
-		"HOME=" + os.Getenv("HOME"),
-		"XDG_CONFIG_HOME=" + os.Getenv("XDG_CONFIG_HOME"),
-		"GIT_CONFIG_NOSYSTEM=1",
-		"GIT_TERMINAL_PROMPT=0",
-		"GIT_OPTIONAL_LOCKS=0",
+	out, err := runEnv(root, userEnv(), "ls-files", "-z", "-co", "--exclude-standard")
+	if err != nil {
+		return nil, err
 	}
-	var out, errb bytes.Buffer
-	cmd.Stdout = &out
-	cmd.Stderr = &errb
-	if err := cmd.Run(); err != nil {
-		return nil, fmt.Errorf("git ls-files: %w: %s", err, strings.TrimSpace(errb.String()))
-	}
-	seen := map[string]bool{}
 	var files []string
-	for _, p := range strings.Split(out.String(), "\x00") {
-		if p != "" && !seen[p] {
-			seen[p] = true
+	for _, p := range strings.Split(string(out), "\x00") {
+		if p != "" && !strings.HasSuffix(p, "/") {
 			files = append(files, p)
 		}
 	}
-	return files, nil
+	return slices.Compact(files), nil
 }
 
 func requireCommit(root, rev string) error {

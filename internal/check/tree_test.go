@@ -95,23 +95,7 @@ const syntheticIBAN = "DE89370400440532013000"
 func copyFixture(t *testing.T, name string) string {
 	t.Helper()
 	dst := t.TempDir()
-	src := filepath.Join("..", "..", "testdata", "repos", name)
-	err := filepath.WalkDir(src, func(path string, d os.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		rel, _ := filepath.Rel(src, path)
-		target := filepath.Join(dst, rel)
-		if d.IsDir() {
-			return os.MkdirAll(target, 0o755)
-		}
-		b, err := os.ReadFile(path)
-		if err != nil {
-			return err
-		}
-		return os.WriteFile(target, b, 0o644)
-	})
-	if err != nil {
+	if err := os.CopyFS(dst, os.DirFS(filepath.Join("..", "..", "testdata", "repos", name))); err != nil {
 		t.Fatal(err)
 	}
 	return dst
@@ -128,18 +112,46 @@ func gitIn(t *testing.T, dir string, args ...string) {
 }
 
 func TestTreeIgnoredFile(t *testing.T) {
-	root := filepath.Join("..", "..", "testdata", "repos", "pii_ignored")
-	local := filepath.Join(root, "local.md")
-	if err := os.WriteFile(local, []byte("Account "+syntheticIBAN+" in body text.\n"), 0o644); err != nil {
+	root := copyFixture(t, "pii_ignored")
+	gitIn(t, root, "init", "-q", "-b", "main")
+	if err := os.WriteFile(filepath.Join(root, "local.md"), []byte("Account "+syntheticIBAN+" in body text.\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { _ = os.Remove(local) })
 	got, err := Tree(Repo{Root: root, Config: testConfig()})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(got) != 0 {
 		t.Fatalf("got %v, want no findings", got)
+	}
+}
+
+func TestTreeNestedRepository(t *testing.T) {
+	root := copyFixture(t, "clean")
+	gitIn(t, root, "init", "-q", "-b", "main")
+	nested := filepath.Join(root, "tools", "nested")
+	if err := os.MkdirAll(nested, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	gitIn(t, nested, "init", "-q")
+	if err := os.WriteFile(filepath.Join(nested, "f.txt"), []byte("x\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Tree(Repo{Root: root, Config: testConfig()}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestTreeGitlinkDirectory(t *testing.T) {
+	root := copyFixture(t, "clean")
+	gitIn(t, root, "init", "-q", "-b", "main")
+	const gitlinkMode = "160000,1111111111111111111111111111111111111111,vendor/sub"
+	gitIn(t, root, "update-index", "--add", "--cacheinfo", gitlinkMode)
+	if err := os.MkdirAll(filepath.Join(root, "vendor", "sub"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Tree(Repo{Root: root, Config: testConfig()}); err != nil {
+		t.Fatal(err)
 	}
 }
 
