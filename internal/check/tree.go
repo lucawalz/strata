@@ -13,6 +13,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/lucawalz/strata/internal/config"
+	"github.com/lucawalz/strata/internal/gitx"
 	"github.com/lucawalz/strata/internal/inject"
 	"github.com/lucawalz/strata/internal/note"
 	"github.com/lucawalz/strata/internal/pii"
@@ -24,7 +25,6 @@ const (
 	archiveDir   = "archive"
 	inboxDir     = "inbox"
 	rawDir       = "raw"
-	gitDir       = ".git"
 	configFile   = "strata.yml"
 	statusSuper  = "superseded"
 	binarySniff  = 8000
@@ -53,16 +53,19 @@ func Tree(repo Repo) ([]Finding, error) {
 		return nil, err
 	}
 
+	tracked, err := gitx.ListFiles(repo.Root)
+	if err != nil {
+		return nil, err
+	}
+
 	var notes []parsed
 	for _, d := range []string{notesDir, archiveDir} {
-		files, err := markdownFiles(filepath.Join(repo.Root, d))
-		if err != nil {
-			return nil, err
-		}
-		for _, f := range files {
-			rel, _ := filepath.Rel(repo.Root, f)
-			rel = filepath.ToSlash(rel)
+		for _, rel := range markdownFiles(tracked, d) {
+			f := filepath.Join(repo.Root, filepath.FromSlash(rel))
 			src, err := os.ReadFile(f)
+			if errors.Is(err, fs.ErrNotExist) {
+				continue
+			}
 			if err != nil {
 				return nil, err
 			}
@@ -153,47 +156,37 @@ func Tree(repo Repo) ([]Finding, error) {
 	}
 
 	for _, d := range []string{notesDir, inboxDir} {
-		files, err := markdownFiles(filepath.Join(repo.Root, d))
-		if err != nil {
-			return nil, err
-		}
-		for _, f := range files {
-			src, err := os.ReadFile(f)
+		for _, rel := range markdownFiles(tracked, d) {
+			src, err := os.ReadFile(filepath.Join(repo.Root, filepath.FromSlash(rel)))
+			if errors.Is(err, fs.ErrNotExist) {
+				continue
+			}
 			if err != nil {
 				return nil, err
 			}
-			rel, _ := filepath.Rel(repo.Root, f)
 			for _, m := range inject.Scan(src) {
-				add(CheckInject, injectLevel(m), filepath.ToSlash(rel), m.Line, "%s at column %d", m.Kind, m.Col)
+				add(CheckInject, injectLevel(m), rel, m.Line, "%s at column %d", m.Kind, m.Col)
 			}
 		}
 	}
 
-	err := filepath.WalkDir(repo.Root, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
+	for _, rel := range tracked {
+		if strings.HasPrefix(rel, rawDir+"/") {
+			continue
 		}
-		if d.IsDir() {
-			if rel, _ := filepath.Rel(repo.Root, path); rel == rawDir || d.Name() == gitDir {
-				return filepath.SkipDir
-			}
-			return nil
+		src, err := os.ReadFile(filepath.Join(repo.Root, filepath.FromSlash(rel)))
+		if errors.Is(err, fs.ErrNotExist) {
+			continue
 		}
-		src, err := os.ReadFile(path)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		if !isText(src) {
-			return nil
+			continue
 		}
-		rel, _ := filepath.Rel(repo.Root, path)
 		for _, m := range pii.Scan(src) {
-			add(CheckPII, Error, filepath.ToSlash(rel), m.Line, "%s at column %d", m.Kind, m.Col)
+			add(CheckPII, Error, rel, m.Line, "%s at column %d", m.Kind, m.Col)
 		}
-		return nil
-	})
-	if err != nil {
-		return nil, err
 	}
 
 	sort.SliceStable(out, func(i, j int) bool {
@@ -209,21 +202,14 @@ func Tree(repo Repo) ([]Finding, error) {
 	return out, nil
 }
 
-func markdownFiles(dir string) ([]string, error) {
-	var files []string
-	err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			if errors.Is(err, fs.ErrNotExist) {
-				return nil
-			}
-			return err
+func markdownFiles(files []string, dir string) []string {
+	var out []string
+	for _, rel := range files {
+		if strings.HasPrefix(rel, dir+"/") && filepath.Ext(rel) == markdownExt {
+			out = append(out, rel)
 		}
-		if !d.IsDir() && filepath.Ext(path) == markdownExt {
-			files = append(files, path)
-		}
-		return nil
-	})
-	return files, err
+	}
+	return out
 }
 
 func missingLink(dir, target string) bool {

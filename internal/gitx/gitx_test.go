@@ -5,6 +5,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
+	"sort"
 	"strings"
 	"testing"
 )
@@ -204,5 +206,68 @@ func TestAddedOnly(t *testing.T) {
 	}
 	if ok, err := AddedOnly(r.dir, appended, changed, "n.md"); err != nil || ok {
 		t.Errorf("change: %v %v", ok, err)
+	}
+}
+
+func listSorted(t *testing.T, root string) []string {
+	t.Helper()
+	got, err := ListFiles(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sort.Strings(got)
+	return got
+}
+
+func TestListFiles(t *testing.T) {
+	r := newRepo(t)
+	r.write("a.md", "a")
+	r.commit("add a")
+	r.write("b.md", "b")
+	r.write(".gitignore", "ignored.md\n")
+	r.write("ignored.md", "x")
+	want := []string{".gitignore", "a.md", "b.md"}
+	if got := listSorted(t, r.dir); !reflect.DeepEqual(got, want) {
+		t.Fatalf("got %v, want %v", got, want)
+	}
+}
+
+func TestListFilesUserIgnore(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("XDG_CONFIG_HOME", "")
+	if err := os.MkdirAll(filepath.Join(home, ".config", "git"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(home, ".config", "git", "ignore"), []byte(".scratch/\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	r := newRepo(t)
+	r.write("a.md", "a")
+	r.write(".scratch/plan.md", "p")
+	want := []string{"a.md"}
+	if got := listSorted(t, r.dir); !reflect.DeepEqual(got, want) {
+		t.Fatalf("got %v, want %v", got, want)
+	}
+}
+
+func TestListFilesOddNames(t *testing.T) {
+	r := newRepo(t)
+	r.write("notes/a b.md", "a")
+	r.write("notes/ü.md", "u")
+	want := []string{"notes/a b.md", "notes/ü.md"}
+	if got := listSorted(t, r.dir); !reflect.DeepEqual(got, want) {
+		t.Fatalf("got %v, want %v", got, want)
+	}
+}
+
+func TestListFilesSubdir(t *testing.T) {
+	r := newRepo(t)
+	r.write("sub/x.md", "x")
+	r.write("top.md", "t")
+	r.commit("add files")
+	want := []string{"x.md"}
+	if got := listSorted(t, filepath.Join(r.dir, "sub")); !reflect.DeepEqual(got, want) {
+		t.Fatalf("got %v, want %v", got, want)
 	}
 }

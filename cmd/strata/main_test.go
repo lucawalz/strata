@@ -27,6 +27,9 @@ func repoWith(t *testing.T, caps string) string {
 	root := t.TempDir()
 	writeFile(t, root, "strata.yml", "caps:\n"+caps)
 	writeFile(t, root, "notes/x.md", strings.Replace(noteText, "%s", "x", 1))
+	if out, err := exec.Command("git", "-C", root, "init", "-q").CombinedOutput(); err != nil {
+		t.Fatalf("git init: %v\n%s", err, out)
+	}
 	return root
 }
 

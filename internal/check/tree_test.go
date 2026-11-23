@@ -1,8 +1,11 @@
 package check
 
 import (
+	"os"
+	"os/exec"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/lucawalz/strata/internal/config"
@@ -84,5 +87,86 @@ func sameSet(a, b []want) bool {
 func TestLevelString(t *testing.T) {
 	if Info.String() != "info" || Warning.String() != "warning" || Error.String() != "error" {
 		t.Fatal("level names")
+	}
+}
+
+const syntheticIBAN = "DE89370400440532013000"
+
+func copyFixture(t *testing.T, name string) string {
+	t.Helper()
+	dst := t.TempDir()
+	src := filepath.Join("..", "..", "testdata", "repos", name)
+	err := filepath.WalkDir(src, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		rel, _ := filepath.Rel(src, path)
+		target := filepath.Join(dst, rel)
+		if d.IsDir() {
+			return os.MkdirAll(target, 0o755)
+		}
+		b, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		return os.WriteFile(target, b, 0o644)
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return dst
+}
+
+func gitIn(t *testing.T, dir string, args ...string) {
+	t.Helper()
+	cmd := exec.Command("git", append([]string{"-c", "user.name=Test", "-c", "user.email=test@example.com", "-c", "commit.gpgsign=false"}, args...)...)
+	cmd.Dir = dir
+	cmd.Env = append(os.Environ(), "GIT_CONFIG_GLOBAL="+os.DevNull, "GIT_CONFIG_NOSYSTEM=1")
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("git %v: %v\n%s", args, err, out)
+	}
+}
+
+func TestTreeIgnoredFile(t *testing.T) {
+	root := filepath.Join("..", "..", "testdata", "repos", "pii_ignored")
+	local := filepath.Join(root, "local.md")
+	if err := os.WriteFile(local, []byte("Account "+syntheticIBAN+" in body text.\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Remove(local) })
+	got, err := Tree(Repo{Root: root, Config: testConfig()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 0 {
+		t.Fatalf("got %v, want no findings", got)
+	}
+}
+
+func TestTreeOutsideGit(t *testing.T) {
+	_, err := Tree(Repo{Root: copyFixture(t, "clean"), Config: testConfig()})
+	if err == nil || !strings.Contains(err.Error(), "git") {
+		t.Fatalf("got %v, want an error naming git", err)
+	}
+}
+
+func TestTreeDeletedTracked(t *testing.T) {
+	root := copyFixture(t, "clean")
+	inbox := filepath.Join(root, inboxDir)
+	if err := os.MkdirAll(inbox, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	gone := filepath.Join(inbox, "gone.md")
+	if err := os.WriteFile(gone, []byte("inbox text\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	gitIn(t, root, "init", "-q", "-b", "main")
+	gitIn(t, root, "add", ".")
+	gitIn(t, root, "commit", "-q", "-m", "add notes")
+	if err := os.Remove(gone); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Tree(Repo{Root: root, Config: testConfig()}); err != nil {
+		t.Fatal(err)
 	}
 }
