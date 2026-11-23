@@ -12,7 +12,7 @@ On a `pull_request` trigger the workflow definition comes from the pull request 
 
 ## Decision
 
-The notes repository runs its checks on `pull_request_target`, so the workflow definition always comes from main; the pull request head is checked out only as data, with a read-only token, and nothing from it is built or run. The result is posted as the check run `strata/gate` by a dedicated GitHub App, gatebot, with Checks read and write and nothing else. Its key lives in an environment named `gate` that only main may deploy to. The ruleset requires `strata/gate` from gatebot's integration id.
+The notes repository runs its checks on `pull_request_target`, so the workflow definition always comes from main; the pull request head is checked out only as data, with a read-only token, and nothing from it is built or run. The result is posted as the check run `strata/gate` by a dedicated GitHub App, plumbbot, with Checks read and write and nothing else. Its key lives in an environment named `gate` that only main may deploy to. The ruleset requires `strata/gate` from plumbbot's integration id.
 
 ## Consequences
 
