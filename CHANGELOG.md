@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.1.3](https://github.com/lucawalz/strata/compare/v0.1.2...v0.1.3) (2026-11-23)
+
+
+### Bug Fixes
+
+* **check:** scan only files git tracks or does not ignore ([829821b](https://github.com/lucawalz/strata/commit/829821b32d5aceab84a1bb614811715ff72b2651))
+* **check:** skip nested repositories and directories in the tree check ([374acd0](https://github.com/lucawalz/strata/commit/374acd0a8e1f9ff1b46963456f6b089234ff444d))
+* **skills:** stop capture refusals from quoting the found identifier ([585d36f](https://github.com/lucawalz/strata/commit/585d36fc223f50d73101b47e27c7bb801129a65a))
+* **workflows:** authenticate the gate app with its client id ([e97c811](https://github.com/lucawalz/strata/commit/e97c81179e4d6e8f6cd56aac511900e04eef1e89))
+
 ## [0.1.2](https://github.com/lucawalz/strata/compare/v0.1.1...v0.1.2) (2026-11-23)
 
 
