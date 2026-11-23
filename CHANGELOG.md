@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.2](https://github.com/lucawalz/strata/compare/v0.1.1...v0.1.2) (2026-11-23)
+
+
+### Bug Fixes
+
+* **skills:** keep refs for outside records and link notes in the body ([adf8985](https://github.com/lucawalz/strata/commit/adf898558b400fd73b42b7c9a593482c348f91fe))
+* **workflows:** scan for secrets with a config the pull request cannot change ([6fe5061](https://github.com/lucawalz/strata/commit/6fe506197eefbedb9ceb6896ce9bdf588cde6517))
+
 ## [0.1.1](https://github.com/lucawalz/strata/compare/v0.1.0...v0.1.1) (2026-11-23)
 
 
