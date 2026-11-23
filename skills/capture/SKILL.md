@@ -24,7 +24,7 @@ Turning material into notes is the curate skill.
 3. Name the file `YYYY-MM-DD-short-slug.md` in lowercase ASCII with hyphens. A `raw/` original keeps its extension.
 4. For `inbox/`, write one source line at the top (where the text came from and when), then the text. Use Semantic Line Breaks: one sentence per line. Do not summarise, merge or correct the text.
 5. Create a branch named `feat/capture-<slug>`. Web sessions push only to non-main branches; never push to main.
-6. Commit with a one-line Conventional Commit such as `feat(inbox): capture lecture summary on tcp congestion`.
+6. Commit with a one-line Conventional Commit such as `feat(inbox): capture the lecture summary on tcp congestion control`.
 7. Open a pull request with the label `kind/capture`. State in at most five lines what was captured and where.
 
 ## Rules

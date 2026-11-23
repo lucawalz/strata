@@ -8,7 +8,7 @@ Expected: the new material is merged into the matching section; the `summary` is
 ## 2. New note created when search finds nothing
 
 Input: an inbox item about a topic with no hit in `notes/`.
-Expected: a new `notes/<id>.md` with complete frontmatter, one H1 first, one sentence per line, self-describing H2s and relative Markdown links in `refs`; the inbox item is moved into `raw/` with `git mv` and its `raw/` path is listed in `sources`; the pull request is labelled `kind/note`.
+Expected: a new `notes/<id>.md` with complete frontmatter, one H1 first, one sentence per line, self-describing H2s and relative Markdown links to related notes in the body; the inbox item is moved into `raw/` with `git mv` and its `raw/` path is listed in `sources`; the pull request is labelled `kind/note`.
 
 ## 3. Contradiction resolved by superseding
 
