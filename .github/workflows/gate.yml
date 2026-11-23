@@ -12,7 +12,7 @@ on:
         required: true
         type: string
     secrets:
-      GATE_APP_ID:
+      GATE_APP_CLIENT_ID:
         required: false
       GATE_APP_PRIVATE_KEY:
         required: false
@@ -29,14 +29,14 @@ jobs:
     steps:
       - name: Require gate secrets
         env:
-          APP_ID: ${{ secrets.GATE_APP_ID }}
+          APP_CLIENT_ID: ${{ secrets.GATE_APP_CLIENT_ID }}
           APP_KEY: ${{ secrets.GATE_APP_PRIVATE_KEY }}
         run: |
-          if [ -z "$APP_ID" ] || [ -z "$APP_KEY" ]; then echo "gate App secrets missing from the gate environment" >&2; exit 1; fi
+          if [ -z "$APP_CLIENT_ID" ] || [ -z "$APP_KEY" ]; then echo "gate App secrets missing from the gate environment" >&2; exit 1; fi
       - id: app-token
         uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
         with:
-          app-id: ${{ secrets.GATE_APP_ID }}
+          client-id: ${{ secrets.GATE_APP_CLIENT_ID }}
           private-key: ${{ secrets.GATE_APP_PRIVATE_KEY }}
           permission-checks: write
       - name: Report gate check run

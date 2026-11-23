@@ -65,7 +65,7 @@ strata skills sync --to .claude/skills
 
 `--format github` prints GitHub workflow commands instead of text lines.
 
-A notes repository calls the reusable workflows `check.yml`, `audit.yml` and `gate.yml` from its own workflows. The caller of `check.yml` grants `contents: read`. The caller of `audit.yml` grants `contents: read` and, on its report job, `issues: write`. The caller job of `gate.yml` uses `secrets: inherit` and passes the aggregate `result` of its check jobs and the `head-sha` to report on. `GATE_APP_ID` and `GATE_APP_PRIVATE_KEY` exist only as secrets of the `gate` environment, which is limited to `main`, and never as repository secrets.
+A notes repository calls the reusable workflows `check.yml`, `audit.yml` and `gate.yml` from its own workflows. The caller of `check.yml` grants `contents: read`. The caller of `audit.yml` grants `contents: read` and, on its report job, `issues: write`. The caller job of `gate.yml` uses `secrets: inherit` and passes the aggregate `result` of its check jobs and the `head-sha` to report on. `GATE_APP_CLIENT_ID` and `GATE_APP_PRIVATE_KEY` exist only as secrets of the `gate` environment, which is limited to `main`, and never as repository secrets.
 
 Commits made by a Claude Code web session are authored by `Claude <noreply@anthropic.com>` and carry GitHub's signature instead of the owner's key, so the governance check rejects them on governance paths until the owner reviews the branch and re-signs it with `just resign`. Their pull requests open under the owner's account through the Claude GitHub App.
 
