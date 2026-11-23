@@ -19,7 +19,7 @@ Turning material into notes is the curate skill.
 
 ## Steps
 
-1. Scan the text for personal identifiers before writing anything. Refuse the capture when the text contains an IBAN, a payment card number, a tax ID, a social insurance number or an ID card or passport number. Tell the owner which kind was found and ask for a redacted version. Never write the text to disk, a branch or a PR description.
+1. Scan the text for personal identifiers before writing anything. Refuse the capture when the text contains an IBAN, a payment card number, a tax ID, a social insurance number or an ID card or passport number. Tell the owner which kind was found and ask for a redacted version, without quoting any part of the identifier. Never write the text to disk, a branch or a PR description.
 2. Pick the target. A summary, paste or excerpt goes to `inbox/`. An original that must be preserved as received goes to `raw/`.
 3. Name the file `YYYY-MM-DD-short-slug.md` in lowercase ASCII with hyphens. A `raw/` original keeps its extension.
 4. For `inbox/`, write one source line at the top (where the text came from and when), then the text. Use Semantic Line Breaks: one sentence per line. Do not summarise, merge or correct the text.
