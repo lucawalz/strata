@@ -34,9 +34,17 @@ jobs:
           cache: false
       - name: Install strata
         env:
+          STRATA_REPOSITORY: ${{ fromJSON(toJSON(job)).workflow_repository }}
           STRATA_REF: ${{ fromJSON(toJSON(job)).workflow_sha }}
           GOBIN: ${{ runner.temp }}/bin
-        run: go install "github.com/lucawalz/strata/cmd/strata@${STRATA_REF}"
+          GOWORK: "off"
+        run: |
+          src="${RUNNER_TEMP}/strata-src"
+          git init -q "${src}"
+          git -C "${src}" fetch -q --depth 1 "https://github.com/${STRATA_REPOSITORY}" "${STRATA_REF}"
+          git -C "${src}" checkout -q FETCH_HEAD
+          cd "${src}"
+          go install ./cmd/strata
       - name: Audit governance commits
         id: audit
         env:

@@ -12,7 +12,7 @@ A notes repository needs schema, link, size, personal-data, hidden-content and g
 
 ## Decision
 
-All checks live in one Go command, `strata`, with subcommands for the tree, the diff, the push audit, calibration and skill sync. The reusable workflows install it with `go install` at the commit in `job.workflow_sha` and run the installed binary. Schemas and skills are embedded in the binary.
+All checks live in one Go command, `strata`, with subcommands for the tree, the diff, the push audit, calibration and skill sync. The reusable workflows fetch strata at the commit in `job.workflow_sha` into the runner's temporary directory, outside the checked-out repository, build it with `go install`, and run the installed binary; a pull request merge commit cannot be fetched as a Go module version. Schemas and skills are embedded in the binary.
 
 ## Consequences
 
