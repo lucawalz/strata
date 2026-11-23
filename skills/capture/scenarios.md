@@ -12,5 +12,5 @@ Expected: the file is added unchanged under `raw/` with its original extension; 
 
 ## 3. Capture refused on an IBAN
 
-Input: the owner pastes meeting notes that contain DE89370400440532013000.
+Input: the owner pastes meeting notes that contain a valid German IBAN.
 Expected: the capture is refused; the reply names the kind of identifier (IBAN) and asks for a redacted version; no file, branch, commit or pull request is created and the number is not repeated in any output.
