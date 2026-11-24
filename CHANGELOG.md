@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.4](https://github.com/lucawalz/strata/compare/v0.1.3...v0.1.4) (2026-11-24)
+
+
+### Bug Fixes
+
+* **skills:** run the repository check recipe before opening a pull request ([31203a3](https://github.com/lucawalz/strata/commit/31203a376efaefee394ee79cf5a6616133663db2))
+
 ## [0.1.3](https://github.com/lucawalz/strata/compare/v0.1.2...v0.1.3) (2026-11-23)
 
 
