@@ -31,7 +31,7 @@ The repository's AGENTS.md is authoritative; this skill summarises the workflow.
 5. Move every processed inbox item into `raw/` with `git mv`, in the same commit as the note, and list the new `raw/` path in the note's `sources`. Never delete an inbox item, and never modify, rename or delete anything already under `raw/`.
 6. Archive instead of deleting notes; `archive/` keeps history.
 7. One pull request per topic, labelled `kind/note`, from a branch named `feat/<topic>`. Web sessions push only to non-main branches.
-8. Run `strata check tree` before opening the PR and fix every error finding.
+8. Run `just check` before opening the PR and fix every error finding.
 
 ## Rules
 
